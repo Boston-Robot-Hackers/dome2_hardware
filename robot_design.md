@@ -13,7 +13,7 @@ Living design document: mechanical, electrical, software, controls, integration,
 | Waveshare UPS Module 3S | [Manufacturer](https://www.waveshare.com/product/ups-module-3s.htm) | Battery UPS, 5 V supply | Known |
 | Panasonic NCR18650GA cells ×3 (+1 spare) | [Manufacturer](https://energy.panasonic.com/eu/business/products/lithium-ion/models/NCR18650GA) | 3S battery pack | Known |
 | Pololu 25D HP 34:1 gearmotor w/encoder ×4 | [Pololu #4844](https://www.pololu.com/product/4844) | Drive motors | **Chosen** |
-| RoboClaw 2x7A | [BasicMicro](https://www.basicmicro.com/RoboClaw-2x7A-Motor-Controller_p_55.html) | Motor controller | **Chosen** |
+| RoboClaw 2x5A | [Pololu](https://www.pololu.com/product/2394) | Motor controller | **Chosen** |
 | Cytron MDD10A | [Cytron](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels) | Backup motor controller | Backup |
 | Wheels ×4 | TBD | Drive wheels | Required — 100 mm diameter |
 | Camera | TBD | Vision sensor | TBD |
@@ -50,13 +50,13 @@ Pololu #4844. 12 VDC, 300 RPM no-load, 4 mm D-shaft, 25 mm body.
 - No-load: 300 mA, ~3.6 W
 - Stall: 5.0 A, ~60 W, 11 kg·cm (1.08 N·m)
 - Encoder: quadrature Hall effect, 48 CPR motor shaft, 1632 CPR output shaft
-- 4 motors no-load: 1.2 A, ~14.4 W · paired channel stall: ~10 A (within RoboClaw 2x7A ~15 A peak)
+- 4 motors no-load: 1.2 A, ~14.4 W · paired channel stall: ~10 A — **at RoboClaw 2x5A 10 A peak limit ⚠️**
 - Verify encoder output signal voltage before connecting to Pi GPIO.
 
-### [RoboClaw 2x7A Motor Controller](https://www.basicmicro.com/RoboClaw-2x7A-Motor-Controller_p_55.html) — Chosen
-2-channel brushed DC, 6–34 V, 7 A continuous / ~15 A peak per channel (verify datasheet).
+### [RoboClaw 2x5A Motor Controller](https://www.pololu.com/product/2394) — Chosen
+2-channel brushed DC, 6–34 V, 5 A continuous / 10 A peak per channel.
 Interfaces: USB, TTL serial, RC, analog. Dual quadrature encoder inputs. Built-in speed/position PID.
-Paired 34:1 motors stall at ~10 A/channel → ~5 A margin. Onboard PID eliminates separate microcontroller.
+Paired 34:1 motors stall at ~10 A/channel — exactly at peak limit, **zero margin**. Acceleration limiting and stall avoidance are essential.
 
 ---
 
@@ -90,13 +90,15 @@ Per-motor current: 300 mA no-load, ~500 mA typical driving, 5.0 A stall.
 
 **Key limits:**
 - 5 V rail: 2 A of 5 A used ✓ · battery typical: 3 A of 10 A cell rating ✓
-- Stall: 20 A exceeds cell continuous rating — avoid sustained stall ⚠️
-- Fuse: 10 A for bench test; raise to 15 A after measuring real load
+- RoboClaw 2x5A: 5 A continuous / 10 A peak per channel — paired stall hits peak exactly ⚠️
+- Stall: 20 A total exceeds cell continuous rating — avoid sustained stall ⚠️
+- Keep typical per-channel motor current ≤5 A (≤2.5 A per motor) via acceleration limits and speed cap
+- Fuse: 10 A for bench test; do not raise above 10 A (controller peak limit)
 
 ### Switching and Protection
 
 **UPS switch** cuts both 5 V and XH2.54 12 V simultaneously — single switch controls everything.
-- Wire gauge: minimum 16 AWG for motor rail at 10–15 A continuous; 14 AWG preferred.
+- Wire gauge: minimum 16 AWG for motor rail; 14 AWG preferred.
 - Verify XH2.54 connector and UPS trace can handle motor operating current.
 
 ### Electrical Risks
@@ -115,49 +117,7 @@ Per-motor current: 300 mA no-load, ~500 mA typical driving, 5.0 A stall.
 
 ---
 
-## 5. Compute and Control
-
-### Control Path
-
-```text
-ROS / Linorobot2
-   └──> RoboClaw 2x7A (USB or TTL serial)
-          └──> Drive motors ×4 (paired left/right)
-                 └──> Encoder feedback → RoboClaw PID
-```
-
-### Open Control Decisions
-- ROS topics and message flow for RoboClaw integration.
-- Odometry calibration workflow.
-
----
-
-## 6. Mechanical Design
-
-- Chassis type: TBD (differential drive assumed)
-- Frame material: TBD
-- Wheel layout: four powered wheels, left/right paired — front+rear left on left RoboClaw channel, front+rear right on right channel
-- Wheels: 100 mm diameter, hub must accept 4 mm D-shaft
-- Mounting: must fit Pi, batteries, RoboClaw, wiring, and sensors with access for debugging
-- Route high-current motor wiring away from signal wiring; strain relief on all connectors
-
----
-
-## 7. Software Design
-
-**Target stack:** Raspberry Pi OS or Ubuntu, ROS 2, Linorobot2, Ethernet or Wi-Fi for development.
-
-**Responsibilities:**
-- RoboClaw motor control integration (USB or TTL serial)
-- Odometry publishing from encoder feedback
-- Sensor drivers (camera, lidar, I2C)
-- Battery monitoring via UPS I2C
-- Teleoperation and bringup scripts
-- Config: robot dimensions, wheel parameters, PID tuning
-
----
-
-## 8. Integration Plan
+## 5. Integration Plan
 
 
 1. Confirm mechanical layout and component placement.
@@ -172,7 +132,7 @@ ROS / Linorobot2
 
 ---
 
-## 9. Test Plan
+## 6. Test Plan
 
 | Test | Purpose | Status |
 |---|---|---|
@@ -188,7 +148,7 @@ ROS / Linorobot2
 
 ---
 
-## 10. Alternate Configuration: Pi 5 + OAK-D Lite
+## 7. Alternate Configuration: Pi 5 + OAK-D Lite
 
 Swap-in upgrade. Motors, motor controller, chassis, battery unchanged.
 
@@ -229,12 +189,12 @@ Peak (heavy CPU + active OAK-D + lidar) hits UPS 5 A limit exactly — no margin
 
 ---
 
-## 11. Open Questions
+## 8. Open Questions
 
 - Final chassis design?
 - Drive configuration confirmed (differential, 4-wheel paired)?
 - Verify Pololu 34:1 specs from datasheet (no-load speed, stall current, stall torque).
-- Verify RoboClaw 2x7A exact peak current from BasicMicro datasheet.
+- Configure RoboClaw 2x5A acceleration and current limits to stay within 5 A continuous per channel.
 - Which sensors required for first working version?
 - What payload margin beyond ~2 kg robot mass?
 - Initial ROS / Linorobot2 bringup path?
@@ -244,28 +204,25 @@ Peak (heavy CPU + active OAK-D + lidar) hits UPS 5 A limit exactly — no margin
 - Wire gauge and connector for motor rail — verify against real load current.
 - Measure actual motor current under real load at 1.0 m/s.
 - Encoder output signal voltage — 3.3 V safe or level shifting needed?
-- RoboClaw 2x7A to Pi: USB or TTL serial?
+- RoboClaw 2x5A to Pi: USB or TTL serial?
 - Battery monitoring integrated into ROS?
 - Are three installed cells new and matched?
 - Cytron MDD10A backup: which component handles encoder PID if used?
 
 ---
 
-## 12. Backup Components
+## 9. Backup Components
 
 ### [Cytron MDD10A](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels)
-Use if RoboClaw 2x7A unavailable. **No onboard encoder PID** — PID must run on Pi or separate microcontroller.
+Use if RoboClaw 2x5A unavailable. **No onboard encoder PID** — PID must run on Pi or separate microcontroller.
 7–30 V, 10 A continuous / 30 A peak per channel. Interfaces: PWM, RC, analog only.
 
 ---
 
-## 13. Superseded Components
+## 10. Superseded Components
 
 ### [DFRobot FIT0186 Gearmotor](https://www.dfrobot.com/product-634.html)
-Superseded by Pololu 34:1. DigiKey 1738-1106-ND. 12 V, 251 RPM, 7 A stall (14 A/channel paired — exceeds RoboClaw 2x7A peak), 700 CPR output encoder.
-
-### [RoboClaw 2x5A](https://www.pololu.com/product/2394)
-Superseded by RoboClaw 2x7A. 6–34 V, 5 A continuous / 10 A peak per channel — insufficient for paired motor stall.
+Superseded by Pololu 34:1. DigiKey 1738-1106-ND. 12 V, 251 RPM, 7 A stall (14 A/channel paired — exceeds RoboClaw 2x5A peak), 700 CPR output encoder.
 
 ### Motor Comparison: FIT0186 vs Pololu 34:1
 
@@ -277,5 +234,5 @@ Superseded by RoboClaw 2x7A. 6–34 V, 5 A continuous / 10 A peak per channel �
 | Stall torque | 18 kg·cm | 11 kg·cm |
 | Encoder CPR (output) | 700 | 1632 |
 | 4-motor stall current | 28 A | 20 A |
-| Paired channel stall | 14 A — exceeds RoboClaw 2x7A | 10 A — within peak |
+| Paired channel stall | 14 A — exceeds RoboClaw 2x5A | 10 A — within peak |
 | No-load speed (100 mm wheel) | ~1.31 m/s | ~1.57 m/s |
