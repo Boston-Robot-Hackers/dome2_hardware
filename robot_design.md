@@ -38,8 +38,11 @@ Raspberry Pi
 | Raspberry Pi I2C Shim | TBD | I2C expansion / wiring convenience | Known | Exact model TBD |
 | Waveshare UPS Module 3S | [Manufacturer](https://www.waveshare.com/product/ups-module-3s.htm) | 3S battery UPS and 5 V supply | Known | 5 V / 5 A output; XH battery-voltage output is not motor-current rated |
 | Panasonic NCR18650GA cells | [Manufacturer](https://energy.panasonic.com/eu/business/products/lithium-ion/models/NCR18650GA) | 3S battery pack cells | Known | 3 installed, 1 spare |
-| DFRobot FIT0186 gearmotors with encoders, quantity 4 | [Manufacturer](https://www.dfrobot.com/product-634.html), [DigiKey](https://www.digikey.com/en/products/detail/dfrobot/FIT0186/6588528) | Drive motors and encoder feedback | Known | 12 V, 251 RPM, 43.8:1, 18 kg.cm stall torque, 700 CPR output encoder, 7 A stall each |
-| RoboClaw 2x5A | [Pololu](https://www.pololu.com/product/2394) | Candidate dual motor controller | Alternative | Two channels: front+rear left motors on left channel, front+rear right motors on right channel |
+| Pololu 25D HP 34:1 gearmotors with encoders, quantity 4 | [Pololu #4844](https://www.pololu.com/product/4844) | Drive motors and encoder feedback | **Chosen** | 12 V, 300 RPM no-load, 34:1, 11 kg·cm stall torque, 1632 CPR output encoder, 5.0 A stall each |
+| RoboClaw 2x7A | [BasicMicro](https://www.basicmicro.com/RoboClaw-2x7A-Motor-Controller_p_55.html) | Dual motor controller | **Chosen** | 7 A continuous / ~15 A peak per channel; USB, TTL serial, RC, analog; onboard encoder PID; paired 34:1 motors = ~10 A stall per channel — within peak rating |
+| Cytron MDD10A | [Cytron](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels) | Backup dual motor controller | Backup | 10 A continuous / 30 A peak per channel, 7–30 V; PWM/RC/analog only — no onboard encoder PID; needs external PID loop |
+| DFRobot FIT0186 gearmotors with encoders, quantity 4 | [Manufacturer](https://www.dfrobot.com/product-634.html) | Drive motors and encoder feedback | Superseded | 12 V, 251 RPM, 7 A stall each |
+| RoboClaw 2x5A | [Pololu](https://www.pololu.com/product/2394) | Dual motor controller | Superseded | 5 A continuous / 10 A peak per channel |
 | Motor power fuse | TBD | Motor rail protection | Required | Initial bench-test target: 7.5 A or 10 A automotive blade fuse |
 | Motor power switch / e-stop | TBD | Disable motor power while Pi stays on | Required | DC-rated switch required |
 | Camera | TBD | Vision sensor | TBD | USB or CSI TBD |
@@ -50,12 +53,10 @@ Raspberry Pi
 
 ### Chassis
 
-| Item | Current Decision | Notes |
-|---|---|---|
-| Chassis type | TBD | Differential drive assumed until confirmed |
-| Frame material | TBD | Consider stiffness, weight, and ease of modification |
-| Wheel layout | Four powered wheels, left/right paired drive | Front+rear left motors share left controller channel; front+rear right motors share right channel |
-| Mounting system | TBD | Leave room for Pi, batteries, motor driver, wiring, and sensors |
+- Chassis type: TBD (differential drive assumed)
+- Frame material: TBD
+- Wheel layout: four powered wheels, left/right paired — front+rear left on left channel, front+rear right on right channel
+- Mounting: TBD — must fit Pi, batteries, RoboClaw, wiring, sensors
 
 ### Mechanical Requirements
 
@@ -67,52 +68,13 @@ Raspberry Pi
 
 ## 5. Motor Sizing
 
-Current assumptions:
+Pololu 25D HP 34:1, 100 mm wheels, ~2 kg robot:
+- Robot: 2 kg, 100 mm wheel (0.314 m circumference), 1.0 m/s target → ~191 RPM required
+- Motor: 300 RPM no-load at 12 V → ~1.57 m/s no-load, ~1.17 m/s at 9 V, ~36% margin at 12 V
+- Current: 5.0 A stall per motor, ~10 A per paired channel, RoboClaw 2x7A peak ~15 A → ~5 A headroom
+- Encoder: 1632 CPR output (48 × 34) — good odometry resolution
+- Torque: 11 kg·cm stall — more than adequate for indoor ~2 kg robot; limit acceleration in software
 
-| Parameter | Value |
-|---|---:|
-| Robot mass | ~2 kg |
-| Wheel diameter | 100 mm / 0.10 m |
-| Wheel circumference | ~0.314 m |
-| Target top speed | 1.0 m/s |
-| Wheel RPM required for 1.0 m/s | ~191 RPM |
-| FIT0186 no-load speed at 12 V | 251 RPM |
-| No-load vehicle speed at 12 V | ~1.31 m/s |
-| Approx no-load vehicle speed at 9.0 V | ~0.99 m/s |
-| Approx no-load vehicle speed at 12.6 V | ~1.38 m/s |
-| RPM margin at 12 V for 1.0 m/s target | ~24% |
-| Stall wheel force, one motor | ~35 N |
-| Stall wheel force, four motors | ~142 N |
-| Ideal acceleration at full stall force, before traction losses | ~71 m/s^2 |
-
-Sizing conclusion:
-
-- With 100 mm wheels, the FIT0186 is not excessive on speed. A 1.0 m/s target requires about 191 RPM, below the 251 RPM no-load rating.
-- For a roughly 2 kg robot, the motors are very strong on torque. The theoretical four-motor stall force is about 142 N, far more than needed for normal indoor driving and likely above available wheel traction.
-- Practical acceleration should be limited in software or motor-controller configuration. A target acceleration around 0.5-1.0 m/s^2 would need only a small fraction of available stall torque.
-- The design risk is mainly electrical: stall current is 7 A per motor, so acceleration limiting, current limiting, fusing, and avoiding mechanical stalls are important. Four FIT0186 motors raise the stall-current case to 28 A total, or 14 A stall per controller channel when front/rear motors are paired left and right.
-
-
-### Ideal Replacement Motor Target
-
-If replacing the FIT0186 motors with a better-matched, lower-power option, keep roughly the same speed class but reduce torque and stall current.
-
-| Spec | Target |
-|---|---:|
-| Motor type | Brushed DC gearmotor with quadrature encoder |
-| Rated voltage | 12 V nominal |
-| Gearbox output speed | ~250-350 RPM no-load at 12 V |
-| Minimum useful loaded speed | ~200 RPM |
-| No-load current | <150-250 mA per motor |
-| Typical running current | ~300-800 mA per motor |
-| Stall current | ~2-3 A per motor |
-| Stall torque | ~0.4-0.8 N.m |
-| Encoder | Quadrature, preferably 3.3 V-safe or open-collector |
-| Encoder resolution | ~300-1000 CPR at gearbox output |
-| Shaft | Match wheel hub, ideally 4-6 mm D-shaft |
-| Comfortable motor driver class | 2x3A to 2x5A |
-
-The current FIT0186 motors are acceptable on speed, but high on torque and stall current. A better match would be around 250-350 RPM with 2-3 A stall current and 0.4-0.8 N.m stall torque per motor. That would keep the 1.0 m/s design target while reducing stress on the battery, fuse, switch, wiring, and motor controller.
 
 ## 6. Electrical Design
 
@@ -128,11 +90,9 @@ Electrical details are tracked in `robot_electrical_components.md`.
 
 ### Power Rails
 
-| Rail | Voltage | Loads | Notes |
-|---|---:|---|---|
-| Battery rail | 9.0-12.6 V | Motor driver, drive motors | Must be separately rated/fused for motor current |
-| 5 V rail | 5 V | Raspberry Pi, USB peripherals | Limited by UPS output |
-| 3.3 V logic | 3.3 V | Pi GPIO, I2C logic | Must remain Pi-safe |
+- Battery rail: 9.0–12.6 V → RoboClaw 2x7A + drive motors (separately fused/switched)
+- 5 V rail: 5 V → Raspberry Pi, USB peripherals (limited to 25 W by UPS)
+- 3.3 V logic: Pi GPIO, I2C (Pi-safe only)
 
 ### Electrical Risks
 
@@ -146,11 +106,10 @@ Electrical details are tracked in `robot_electrical_components.md`.
 
 ### Main Computer
 
-| Component | Role | Status |
-|---|---|---|
-| [Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) | Main ROS computer | Known |
-| [DFRobot FIT0186 gearmotors](https://www.dfrobot.com/product-634.html) | Drive motors with encoders | Known |
-| [RoboClaw 2x5A](https://www.pololu.com/product/2394) | Alternative dual motor controller | Candidate |
+- [Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) — main ROS computer
+- [Pololu 25D HP 34:1 gearmotors](https://www.pololu.com/product/4844) ×4 — chosen drive motors
+- RoboClaw 2x7A — chosen motor controller (onboard encoder PID)
+- Cytron MDD10A — backup motor controller (no onboard PID)
 
 ### Control Path
 
@@ -163,11 +122,10 @@ ROS / Linorobot2
 
 ### Open Control Decisions
 
-- Whether motor control is handled by a separate microcontroller.
-- Motor driver model: RoboClaw 2x5A is a candidate for left/right paired drive, but each channel would see two motors in parallel and battery-current path must be resolved.
-- FIT0186 encoder interface and signal level.
-- ROS topics and message flow.
+- Whether RoboClaw 2x7A connects directly to Pi via USB/TTL or through a microcontroller.
+- ROS topics and message flow for RoboClaw integration.
 - Odometry source and calibration workflow.
+- Pololu 34:1 encoder signal voltage — 3.3 V safe for Pi GPIO, or level shifting required.
 
 ## 8. Sensors and Peripherals
 
@@ -175,7 +133,7 @@ ROS / Linorobot2
 |---|---|---:|---|---|
 | Camera | USB or CSI | TBD | TBD | Exact model TBD |
 | Lidar | USB or serial | TBD | TBD | Exact model TBD |
-| [DFRobot FIT0186 encoders](https://www.dfrobot.com/product-634.html) | GPIO or microcontroller | 5 V encoder power | Known motor, interface TBD | Must be 3.3 V safe if connected to Pi |
+| Pololu 34:1 encoders | RoboClaw 2x7A encoder inputs | 5 V encoder power | Chosen motor, signal level TBD | Verify 3.3 V safe before connecting to Pi GPIO |
 | I2C devices | I2C | TBD | TBD | Track addresses |
 
 ## 9. Software Design
@@ -229,19 +187,67 @@ ROS / Linorobot2
 | `robot_electrical_components.md` | Electrical/electronic components, power, and compatibility |
 | `2026-05-18-robot-electronics-summary.md` | Summary of earlier electronics documentation session |
 
-## 13. Open Questions
+## 13. Alternate Configuration: Pi 5 + OAK-D Lite
+
+Swap-in upgrade path. Motors, motor controller, chassis, and battery unchanged.
+
+| Component | Base Config | Alternate Config |
+|---|---|---|
+| Compute | Raspberry Pi 4B | Raspberry Pi 5 |
+| Vision | TBD USB/CSI camera | [Luxonis OAK-D Lite](https://shop.luxonis.com/products/oak-d-lite-1) |
+| USB | USB 2.0 (adequate) | USB 3.0 required for OAK-D Lite bandwidth |
+
+### Raspberry Pi 5
+- 5V USB-C, requires 5A/27W supply — same UPS module but at its limit under heavy load
+- Idle: ~1A / ~5W · typical: ~1.8A / ~9W · heavy: ~3.5A / ~17.5W
+- Better CPU performance for ROS 2 nav stack, point cloud processing
+- Native USB 3.0 — required for OAK-D Lite
+
+### OAK-D Lite
+- USB 3.0 (USB-C), bus-powered from Pi 5
+- Typical: ~400 mA / ~2W · active inference: ~500 mA / ~2.5W
+- Provides: stereo depth (3D), RGB camera, onboard MyriadX VPU for neural net inference
+- ROS 2 driver: `depthai-ros` package
+- Replaces separate RGB camera + avoids separate depth sensor
+
+### 5V Rail — Pi 5 config
+
+| Load | Typical | Heavy | Notes |
+|---|---|---|---|
+| Raspberry Pi 5 | 1.8 A / 9 W | 3.5 A / 17.5 W | RPi foundation data |
+| OAK-D Lite | 0.4 A / 2 W | 0.5 A / 2.5 W | USB bus powered |
+| USB lidar | 0.5 A / 2.5 W | 0.5 A / 2.5 W | |
+| I2C | negligible | negligible | |
+| **Total** | **2.7 A / 13.5 W ✓** | **4.5 A / 22.5 W ⚠️** | 5 A / 25 W limit |
+
+Heavy load approaches UPS 5A limit — avoid sustained heavy CPU + active OAK-D inference simultaneously, or upgrade to a higher-current 5V supply.
+
+### Runtime — Pi 5 config
+Battery rail unchanged (~22W motors + ~2W RoboClaw). 5V rail draws ~15W typical from battery (13.5W / 85% UPS efficiency).
+- Typical total: ~39W → **~58 min** (vs ~60 min Pi 4B config — negligible difference)
+- Heavy load total: ~50W → **~46 min**
+
+### Open questions — Pi 5 config
+- Linorobot2 compatibility with Pi 5 / Ubuntu for Pi 5 confirmed?
+- `depthai-ros` package stable on ROS 2 Humble/Jazzy?
+- UPS module 5V output stable at 4.5A sustained — measure under real load before relying on it.
+- Does OAK-D Lite depth replace lidar, supplement it, or is lidar still needed for nav?
+
+---
+
+## 14. Open Questions
 
 - What is the final chassis design?
 - What drive configuration will be used?
-- Four DFRobot FIT0186 motors are currently assumed; confirm whether all four are driven independently.
-- Can one RoboClaw 2x5A safely drive paired front/rear motors on each left/right channel, or is a higher-current controller needed?
-- Will motor power bypass the Waveshare UPS module through a separate protected/fused battery rail?
-- What continuous motor current should be assumed under real robot load at the 1.0 m/s target speed and ~2 kg robot mass?
-- What acceleration limit should be configured to keep motor current reasonable?
-- Should the FIT0186 motors be kept, or replaced with lower-current 250-350 RPM motors closer to the ideal target?
-- Are the FIT0186 encoder output signals safe for Raspberry Pi GPIO?
-- Which sensors are required for the first working version?
-- Which microcontroller, if any, will sit between ROS and the motor driver?
-- What is the target runtime?
-- What payload margin is needed beyond the current ~2 kg robot mass?
-- What is the initial ROS / Linorobot2 bringup path?
+- Verify Pololu 34:1 exact no-load speed, stall current, and stall torque from datasheet.
+- Verify RoboClaw 2x7A exact peak current rating from BasicMicro datasheet.
+- Cytron MDD10A backup: if used, which component handles encoder PID — Pi or separate microcontroller?
+- Motor power: confirm separate fused/switched battery rail bypassing Waveshare UPS module.
+- What continuous motor current under real load at 1.0 m/s, ~2 kg robot?
+- What acceleration limit to configure in RoboClaw to keep current reasonable?
+- Are Pololu 34:1 encoder output signals 3.3 V safe for Pi GPIO?
+- Which sensors required for first working version?
+- RoboClaw 2x7A to Pi: USB or TTL serial?
+- What is target runtime?
+- What payload margin beyond ~2 kg robot mass?
+- What is initial ROS / Linorobot2 bringup path?
