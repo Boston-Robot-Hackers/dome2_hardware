@@ -12,10 +12,10 @@ Living design document: mechanical, electrical, software, controls, integration,
 | Raspberry Pi I2C Shim | TBD | I2C expansion | Known — exact model TBD |
 | Waveshare UPS Module 3S | [Manufacturer](https://www.waveshare.com/product/ups-module-3s.htm) | Battery UPS, 5 V supply | Known |
 | Panasonic NCR18650GA cells ×3 (+1 spare) | [Manufacturer](https://energy.panasonic.com/eu/business/products/lithium-ion/models/NCR18650GA) | 3S battery pack | Known |
-| Pololu 25D HP 34:1 gearmotor w/encoder ×4 | [Pololu #4844](https://www.pololu.com/product/4844) | Drive motors | **Chosen** |
+| Pololu 25D MP 34:1 gearmotor w/encoder ×4 | [Pololu #4864](https://www.pololu.com/product/4864) | Drive motors | **Chosen** — ~$50/ea × 4 = ~$200 ⚠️ |
 | RoboClaw 2x5A | [Pololu](https://www.pololu.com/product/2394) | Motor controller | **Chosen** |
 | Cytron MDD10A | [Cytron](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels) | Backup motor controller | Backup |
-| Wheels ×4 | TBD | Drive wheels | Required — 100 mm diameter |
+| Wheels ×4 | TBD | Drive wheels | Required — ~100 mm diameter, 4 mm D-shaft, decision pending |
 | Camera | TBD | Vision sensor | TBD |
 | Lidar | TBD | 2D navigation sensor | TBD |
 | I2C peripherals | TBD | Battery/status/sensor peripherals | TBD |
@@ -45,27 +45,110 @@ Power: 5 V USB-C from UPS module. Interfaces: USB (sensors/camera/lidar), GPIO (
 4 cells (3 installed, 1 spare). Per cell: 18650, Li-ion, 3450 mAh, 3.6–3.7 V nominal, 4.2 V full, 10 A continuous.
 3S pack: 11.1 V nominal / 12.6 V full, 3450 mAh, ~38 Wh. Runtime: ~3.8 h @ 10 W · ~1.9 h @ 20 W · ~1.3 h @ 30 W.
 
-### [Pololu 34:1 Metal Gearmotor 25Dx67L mm HP 12V](https://www.pololu.com/product/4844) — Chosen
-Pololu #4844. 12 VDC, 300 RPM no-load, 4 mm D-shaft, 25 mm body.
-- No-load: 300 mA, ~3.6 W
-- Stall: 5.0 A, ~60 W, 11 kg·cm (1.08 N·m)
+### [Pololu 34:1 Metal Gearmotor 25Dx67L mm MP 12V](https://www.pololu.com/product/4864) — Chosen
+Pololu #4864. ~$50/ea × 4 = ~$200 total. ⚠️ High unit cost — verify before ordering all 4.
+12 VDC, 230 RPM no-load, 4 mm D-shaft, 25 mm body.
+- No-load: 100 mA, ~1.2 W
+- Stall: 1.8 A, ~21.6 W, 4.7 kg·cm (0.46 N·m)
 - Encoder: quadrature Hall effect, 48 CPR motor shaft, 1632 CPR output shaft
-- 4 motors no-load: 1.2 A, ~14.4 W · paired channel stall: ~10 A — **at RoboClaw 2x5A 10 A peak limit ⚠️**
+- 4 motors no-load: 0.4 A, ~4.8 W · paired channel stall: ~3.6 A — **well within RoboClaw 2x5A 5A continuous ✓**
+- 4-motor stall: 7.2 A — within cell 10 A continuous rating ✓
+- Pololu recommended continuous torque limit: 4 kg·cm; intermittent: 8 kg·cm — stall torque (4.7 kg·cm) is above continuous limit ⚠️ avoid sustained high-load operation
 - Verify encoder output signal voltage before connecting to Pi GPIO.
+
+### Motor Variant Comparison: MP 67L (chosen) vs HP 67L (high-torque alternative)
+
+**HP 67L = [Pololu #4844](https://www.pololu.com/product/4844)**
+
+| Parameter | MP 67L — chosen | HP 67L — backup |
+|---|---|---|
+| Body length | 67 mm | 67 mm |
+| No-load speed | 230 RPM | 300 RPM |
+| No-load current | 100 mA | 300 mA |
+| Stall current | 1.8 A | 5.0 A |
+| Stall torque | 4.7 kg·cm | 11 kg·cm |
+| Paired channel stall | 3.6 A ✓ within continuous | 10 A ⚠️ at peak limit |
+| 4-motor stall | 7.2 A ✓ within cell rating | 20 A ⚠️ exceeds cell rating |
+| Encoder CPR (output) | 1632 | 1632 |
+| No-load speed (100 mm wheel) | ~1.20 m/s | ~1.57 m/s |
+
+**MP chosen for:**
+- Paired stall 3.6 A/channel — eliminates zero-margin ⚠️ problem, stays within RoboClaw continuous limit
+- 4-motor stall within cell continuous rating — no longer requires sustained-stall avoidance as hard constraint
+- 3× lower idle current → longer runtime
+- Still exceeds 1.0 m/s target at no-load
+
+**MP risk:**
+- 57% less stall torque vs HP (4.7 vs 11 kg·cm)
+- Pololu rates 4 kg·cm continuous / 8 kg·cm intermittent — stall torque slightly above continuous limit ⚠️
+- Marginal for steep slopes or heavy obstacles; adequate for flat indoor and light outdoor use
+- Switch to HP if torque proves insufficient under real load
+
+### Wheels — Decision Pending
+
+Motor output shaft: 4 mm D-shaft. Target diameter: ~100 mm (verified against 1.0 m/s speed budget).
+Two candidate types:
+
+#### Inline Skate / Scooter Wheels
+Examples: inline skate wheels (72–110 mm), kick scooter wheels (100–125 mm).
+- **Hub:** designed for 608 bearings (8 mm ID bore) — **not direct fit on 4 mm D-shaft**; needs hub adapter or press-fit insert
+- **Diameter:** 100 mm readily available (inline skate = 90–110 mm, scooter = 100–125 mm)
+- **Material:** polyurethane, hardness 78A–88A (harder = faster/less grip, softer = more grip/wear)
+- **Tread:** smooth or lightly textured — good on hard floors, less grip on loose outdoor surfaces
+- **Width:** ~24 mm (inline) — adequate for stability
+- **Weight:** moderate (~100–150 g each)
+- **Cost:** cheap — $10–30 for a set of 4
+- **Availability:** hardware/sports stores, Amazon
+- ⚠️ Hub adapter required for 4 mm D-shaft — adds complexity, potential slop
+
+#### RC Airplane Wheels
+Examples: Du-Bro, Dubro, generic foam/rubber RC wheels (2.5"–4" = 63–100 mm).
+- **Hub:** typically 3–6 mm shaft hole with set screw — **4 mm versions exist**, D-shaft flat engages set screw directly ✓
+- **Diameter:** 100 mm = ~4" — available but less common; 3" (76 mm) and 4" (102 mm) standard sizes
+- **Material:** foam or soft rubber — more compliant, better grip on varied surfaces
+- **Tread:** foam (smooth, light grip) or rubber tread (better outdoor grip)
+- **Width:** ~25–35 mm — similar to skate
+- **Weight:** very light (~30–60 g each)
+- **Cost:** $5–15 each from hobby shops
+- **Availability:** RC hobby suppliers (HobbyKing, Amazon, local shops)
+- ✓ D-shaft compatible without adapter if set screw hub
+- ⚠️ Foam wheels compress under load — diameter and speed estimates may shift slightly
+- ⚠️ Less durable than PU skate wheels under sustained outdoor use
+
+#### Wheel Comparison
+
+| Parameter | Skate/Scooter | RC Airplane |
+|---|---|---|
+| Diameter (100 mm) | ✓ easy to find | ✓ 4" ≈ 102 mm close enough |
+| D-shaft fit | ⚠️ adapter needed | ✓ set screw hub (4 mm) |
+| Grip — hard floor | ✓ good | ✓ good |
+| Grip — outdoor/rough | ⚠️ marginal | ✓ better (compliant) |
+| Weight | moderate | light |
+| Durability | ✓ high | ⚠️ foam wears faster |
+| Cost (×4) | ✓ $10–30 total | ~$20–60 total |
+| Availability | ✓ local stores | hobby shops / online |
+
+**Recommendation:** RC airplane wheels if 4 mm D-shaft set-screw hub confirmed — simplest fit, lighter, good grip. Skate wheels viable if hub adapter sourced and lower cost matters more than grip.
+
+---
 
 ### [RoboClaw 2x5A Motor Controller](https://www.pololu.com/product/2394) — Chosen
 2-channel brushed DC, 6–34 V, 5 A continuous / 10 A peak per channel.
 Interfaces: USB, TTL serial, RC, analog. Dual quadrature encoder inputs. Built-in speed/position PID.
-Paired 34:1 motors stall at ~10 A/channel — exactly at peak limit, **zero margin**. Acceleration limiting and stall avoidance are essential.
+Paired MP 34:1 motors stall at ~3.6 A/channel — well within 5 A continuous limit ✓. Zero-margin problem from HP motors eliminated.
 
 ---
 
 ## 3. Motor Sizing
 
-Pololu 25D HP 34:1, 100 mm wheels, ~2 kg robot:
-- 1.0 m/s target requires ~191 RPM; motor gives 300 RPM no-load → ~1.57 m/s no-load, ~36% margin
-- Torque: 11 kg·cm stall — more than adequate; limit acceleration in software
+**Use case: indoor and outdoor.** Outdoor terrain, surface transitions, and small obstacles increase torque demand significantly vs. flat indoor floor.
+
+Pololu 25D MP 34:1 (#4864), 100 mm wheels, ~2 kg robot:
+- 1.0 m/s target requires ~191 RPM; motor gives 230 RPM no-load → ~1.20 m/s no-load, ~20% margin ✓
+- Torque: 4.7 kg·cm stall — adequate for flat indoor and light outdoor; marginal for steep slopes or curbs ⚠️
+- Pololu continuous torque limit: 4 kg·cm; intermittent: 8 kg·cm. Avoid sustained high-torque operation.
 - Encoder: 1632 CPR output (48 × 34) — good odometry resolution
+- Switch to HP #4844 (11 kg·cm stall) if real-load testing shows torque insufficient
 
 ---
 
@@ -77,23 +160,23 @@ Pololu 25D HP 34:1, 100 mm wheels, ~2 kg robot:
 - **Typical total: ~2.0 A / ~10 W — 60% headroom ✓**
 
 ### Power Budget — Battery Rail (9.0–12.6 V)
-Per-motor current: 300 mA no-load, ~500 mA typical driving, 5.0 A stall.
+Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
+5 V rail draws ~1.1 A from battery at 85% efficiency (10 W / (11 V × 0.85)).
 
 | Condition | Motor current | Battery current | Power @ 11 V | Notes |
 |---|---|---|---|---|
-| Idle | 4 × 300 mA = 1.2 A | ~2.3 A | ~25 W | includes ~12 W for 5V rail (85% eff.) |
-| Typical driving | 4 × 500 mA = 2.0 A | ~3.1 A | ~36 W | 500 mA/motor indoor flat surface |
-| Heavy load | 4 × 1.5 A = 6.0 A | ~7.1 A | ~78 W | slopes, acceleration bursts |
-| Stall (worst case) | 4 × 5.0 A = 20 A | ~21 A | ~231 W | exceeds cell 10 A rating ⚠️ avoid |
+| Idle | 4 × 100 mA = 0.4 A | ~1.5 A | ~16.5 W | includes 5V rail draw |
+| Typical driving | 4 × 200 mA = 0.8 A | ~1.9 A | ~21 W | ~200 mA/motor flat surface estimate |
+| Heavy load | 4 × 600 mA = 2.4 A | ~3.5 A | ~38.5 W | slopes, acceleration bursts |
+| Stall (worst case) | 4 × 1.8 A = 7.2 A | ~8.3 A | ~91 W | within cell 10 A rating ✓ |
 
-**Runtime (38 Wh pack):** typical driving ~60 min · heavy load ~29 min · idle ~91 min
+**Runtime (38 Wh pack):** typical driving ~108 min · heavy load ~59 min · idle ~138 min
 
 **Key limits:**
-- 5 V rail: 2 A of 5 A used ✓ · battery typical: 3 A of 10 A cell rating ✓
-- RoboClaw 2x5A: 5 A continuous / 10 A peak per channel — paired stall hits peak exactly ⚠️
-- Stall: 20 A total exceeds cell continuous rating — avoid sustained stall ⚠️
-- Keep typical per-channel motor current ≤5 A (≤2.5 A per motor) via acceleration limits and speed cap
-- Fuse: 10 A for bench test; do not raise above 10 A (controller peak limit)
+- 5 V rail: ~2 A of 5 A used ✓
+- RoboClaw 2x5A: paired stall 3.6 A/channel — within 5 A continuous ✓ (zero-margin ⚠️ eliminated)
+- Stall: 7.2 A total — within cell 10 A continuous rating ✓
+- Fuse: 10 A for bench test; motor stall budget peaks at ~8.3 A total ✓
 
 ### Switching and Protection
 
@@ -192,8 +275,11 @@ Peak (heavy CPU + active OAK-D + lidar) hits UPS 5 A limit exactly — no margin
 ## 8. Open Questions
 
 - Final chassis design?
+- Wheel decision: RC airplane (4 mm set-screw hub) vs skate/scooter (needs hub adapter)? Confirm 4 mm D-shaft hub adapter exists for skate route before deciding.
 - Drive configuration confirmed (differential, 4-wheel paired)?
-- Verify Pololu 34:1 specs from datasheet (no-load speed, stall current, stall torque).
+- Verify Pololu 34:1 HP specs from datasheet (no-load speed, stall current, stall torque).
+- Motor variant (MP 67L chosen): verify torque adequate under real outdoor load — switch to HP #4844 if insufficient.
+- Outdoor use: what surface types, max slope angle, curb height? Affects torque margin calculation.
 - Configure RoboClaw 2x5A acceleration and current limits to stay within 5 A continuous per channel.
 - Which sensors required for first working version?
 - What payload margin beyond ~2 kg robot mass?
@@ -224,15 +310,16 @@ Use if RoboClaw 2x5A unavailable. **No onboard encoder PID** — PID must run on
 ### [DFRobot FIT0186 Gearmotor](https://www.dfrobot.com/product-634.html)
 Superseded by Pololu 34:1. DigiKey 1738-1106-ND. 12 V, 251 RPM, 7 A stall (14 A/channel paired — exceeds RoboClaw 2x5A peak), 700 CPR output encoder.
 
-### Motor Comparison: FIT0186 vs Pololu 34:1
+### Motor Comparison: FIT0186 vs Pololu HP 34:1 vs Pololu MP 34:1
 
-| Parameter | FIT0186 | Pololu 34:1 |
-|---|---|---|
-| No-load speed | 251 RPM | 300 RPM |
-| No-load current | 350 mA / 4.2 W | 300 mA / 3.6 W |
-| Stall current | 7.0 A / 84 W | 5.0 A / 60 W |
-| Stall torque | 18 kg·cm | 11 kg·cm |
-| Encoder CPR (output) | 700 | 1632 |
-| 4-motor stall current | 28 A | 20 A |
-| Paired channel stall | 14 A — exceeds RoboClaw 2x5A | 10 A — within peak |
-| No-load speed (100 mm wheel) | ~1.31 m/s | ~1.57 m/s |
+| Parameter | FIT0186 | Pololu HP #4844 | Pololu MP #4864 (chosen) |
+|---|---|---|---|
+| No-load speed | 251 RPM | 300 RPM | 230 RPM |
+| No-load current | 350 mA | 300 mA | 100 mA |
+| Stall current | 7.0 A | 5.0 A | 1.8 A |
+| Stall torque | 18 kg·cm | 11 kg·cm | 4.7 kg·cm |
+| Encoder CPR (output) | 700 | 1632 | 1632 |
+| 4-motor stall current | 28 A | 20 A | 7.2 A |
+| Paired channel stall | 14 A — exceeds RoboClaw 2x5A | 10 A — at peak ⚠️ | 3.6 A — within continuous ✓ |
+| No-load speed (100 mm wheel) | ~1.31 m/s | ~1.57 m/s | ~1.20 m/s |
+| Price (each) | — | ~$50 | ~$50 |
