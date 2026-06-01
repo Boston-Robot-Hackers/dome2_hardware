@@ -13,7 +13,7 @@ Living design document: mechanical, electrical, software, controls, integration,
 | Waveshare UPS Module 3S | [Manufacturer](https://www.waveshare.com/product/ups-module-3s.htm) | Battery UPS, 5 V supply | Known |
 | Panasonic NCR18650GA cells ×3 (+1 spare) | [Manufacturer](https://energy.panasonic.com/eu/business/products/lithium-ion/models/NCR18650GA) | 3S battery pack | Known |
 | Pololu 25D MP 34:1 gearmotor w/encoder ×4 | [Pololu #4864](https://www.pololu.com/product/4864) | Drive motors | **Chosen** — ~$50/ea × 4 = ~$200 ⚠️ |
-| RoboClaw 2x5A | [Pololu](https://www.pololu.com/product/2394) | Motor controller | **Chosen** |
+| RoboClaw 2x7A (V6B) | [Pololu](https://www.pololu.com/product/3682) | Motor controller | **Chosen** |
 | Cytron MDD10A | [Cytron](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels) | Backup motor controller | Backup |
 | Wheels ×4 | TBD | Drive wheels | Required — ~100 mm diameter, 4 mm D-shaft, decision pending |
 | Camera | TBD | Vision sensor | TBD |
@@ -39,7 +39,7 @@ Power: 5 V USB-C from UPS module. Interfaces: USB (sensors/camera/lidar), GPIO (
 - Charge and discharge simultaneously: yes
 - **Single switch controls both 5 V and XH2.54 outputs** — both rails go down together
 - Charge input: 12.6 V / 2 A external power adapter
-- Verify XH2.54 connector and internal trace current rating for motor use (XH connectors typically rated ~3 A; motor stall can reach 20 A)
+- Verify XH2.54 connector and internal trace current rating for motor use (XH connectors typically rated ~3 A; 4-motor stall ~7 A chosen MP, up to ~25 A high-stall candidates)
 
 ### [Panasonic NCR18650GA Cells](https://energy.panasonic.com/eu/business/products/lithium-ion/models/NCR18650GA)
 4 cells (3 installed, 1 spare). Per cell: 18650, Li-ion, 3450 mAh, 3.6–3.7 V nominal, 4.2 V full, 10 A continuous.
@@ -51,38 +51,17 @@ Pololu #4864. ~$50/ea × 4 = ~$200 total. ⚠️ High unit cost — verify befor
 - No-load: 100 mA, ~1.2 W
 - Stall: 1.8 A, ~21.6 W, 4.7 kg·cm (0.46 N·m)
 - Encoder: quadrature Hall effect, 48 CPR motor shaft, 1632 CPR output shaft
-- 4 motors no-load: 0.4 A, ~4.8 W · paired channel stall: ~3.6 A — **well within RoboClaw 2x5A 5A continuous ✓**
+- 4 motors no-load: 0.4 A, ~4.8 W · paired channel stall: ~3.6 A — **well within RoboClaw 2x7A 7.5 A continuous ✓**
 - 4-motor stall: 7.2 A — within cell 10 A continuous rating ✓
 - Pololu recommended continuous torque limit: 4 kg·cm; intermittent: 8 kg·cm — stall torque (4.7 kg·cm) is above continuous limit ⚠️ avoid sustained high-load operation
 - Verify encoder output signal voltage before connecting to Pi GPIO.
 
-### Motor Variant Comparison: MP 67L (chosen) vs HP 67L (high-torque alternative)
+### MP 67L (chosen) vs HP 67L alternative
 
-**HP 67L = [Pololu #4844](https://www.pololu.com/product/4844)**
+HP 67L = [Pololu #4844](https://www.pololu.com/product/4844). Full 3-way comparison (incl. superseded FIT0186) in **Section 10**.
 
-| Parameter | MP 67L — chosen | HP 67L — backup |
-|---|---|---|
-| Body length | 67 mm | 67 mm |
-| No-load speed | 230 RPM | 300 RPM |
-| No-load current | 100 mA | 300 mA |
-| Stall current | 1.8 A | 5.0 A |
-| Stall torque | 4.7 kg·cm | 11 kg·cm |
-| Paired channel stall | 3.6 A ✓ within continuous | 10 A ⚠️ at peak limit |
-| 4-motor stall | 7.2 A ✓ within cell rating | 20 A ⚠️ exceeds cell rating |
-| Encoder CPR (output) | 1632 | 1632 |
-| No-load speed (100 mm wheel) | ~1.20 m/s | ~1.57 m/s |
-
-**MP chosen for:**
-- Paired stall 3.6 A/channel — eliminates zero-margin ⚠️ problem, stays within RoboClaw continuous limit
-- 4-motor stall within cell continuous rating — no longer requires sustained-stall avoidance as hard constraint
-- 3× lower idle current → longer runtime
-- Still exceeds 1.0 m/s target at no-load
-
-**MP risk:**
-- 57% less stall torque vs HP (4.7 vs 11 kg·cm)
-- Pololu rates 4 kg·cm continuous / 8 kg·cm intermittent — stall torque slightly above continuous limit ⚠️
-- Marginal for steep slopes or heavy obstacles; adequate for flat indoor and light outdoor use
-- Switch to HP if torque proves insufficient under real load
+- **MP chosen:** paired stall 3.6 A / 4-motor stall 7.2 A — within RoboClaw continuous + cell ratings (HP: 10 A / 20 A — at controller peak, over cell rating). 3× lower idle current → longer runtime. 230 RPM → ~1.20 m/s, clears 1.0 m/s target.
+- **MP risk:** stall torque 4.7 kg·cm vs HP 11 kg·cm — adequate for flat indoor + light outdoor, marginal on steep slopes/curbs. Switch to HP #4844 if real-load torque insufficient.
 
 ### Wheels — Decision Pending
 
@@ -132,23 +111,21 @@ Examples: Du-Bro, Dubro, generic foam/rubber RC wheels (2.5"–4" = 63–100 mm)
 
 ---
 
-### [RoboClaw 2x5A Motor Controller](https://www.pololu.com/product/2394) — Chosen
-2-channel brushed DC, 6–34 V, 5 A continuous / 10 A peak per channel.
+### [RoboClaw 2x7A Motor Controller (V6B)](https://www.pololu.com/product/3682) — Chosen
+2-channel brushed DC, 6–34 V, **7.5 A continuous / 15 A peak per channel**. (Replaces discontinued 2x5A, Pololu #2394.)
 Interfaces: USB, TTL serial, RC, analog. Dual quadrature encoder inputs. Built-in speed/position PID.
-Paired MP 34:1 motors stall at ~3.6 A/channel — well within 5 A continuous limit ✓. Zero-margin problem from HP motors eliminated.
+Paired MP 34:1 motors stall at ~3.6 A/channel — well within 7.5 A continuous limit ✓. Higher 15 A peak also brings the high-stall JGA25-370 (paired 12.4 A) inside peak — see Section 11.
 
 ---
 
 ## 3. Motor Sizing
 
-**Use case: indoor and outdoor.** Outdoor terrain, surface transitions, and small obstacles increase torque demand significantly vs. flat indoor floor.
+**Use case: indoor + outdoor.** Outdoor terrain, surface transitions, and small obstacles raise torque demand significantly vs. flat indoor floor.
 
-Pololu 25D MP 34:1 (#4864), 100 mm wheels, ~2 kg robot:
-- 1.0 m/s target requires ~191 RPM; motor gives 230 RPM no-load → ~1.20 m/s no-load, ~20% margin ✓
-- Torque: 4.7 kg·cm stall — adequate for flat indoor and light outdoor; marginal for steep slopes or curbs ⚠️
-- Pololu continuous torque limit: 4 kg·cm; intermittent: 8 kg·cm. Avoid sustained high-torque operation.
-- Encoder: 1632 CPR output (48 × 34) — good odometry resolution
-- Switch to HP #4844 (11 kg·cm stall) if real-load testing shows torque insufficient
+Chosen MP #4864, 100 mm wheels, ~2 kg robot:
+- **Speed:** 1.0 m/s needs ~191 RPM; 230 RPM no-load → ~1.20 m/s, ~20% margin ✓
+- **Torque:** 4.7 kg·cm stall, Pololu limit 4 kg·cm continuous / 8 kg·cm intermittent — adequacy + HP fallback in Section 2. Avoid sustained high-torque operation.
+- **Odometry:** 1632 CPR output (48 × 34) — good resolution.
 
 ---
 
@@ -174,7 +151,7 @@ Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
 
 **Key limits:**
 - 5 V rail: ~2 A of 5 A used ✓
-- RoboClaw 2x5A: paired stall 3.6 A/channel — within 5 A continuous ✓ (zero-margin ⚠️ eliminated)
+- RoboClaw 2x7A: paired stall 3.6 A/channel — within 7.5 A continuous ✓ (ample margin)
 - Stall: 7.2 A total — within cell 10 A continuous rating ✓
 - Fuse: 10 A for bench test; motor stall budget peaks at ~8.3 A total ✓
 
@@ -186,7 +163,7 @@ Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
 
 ### Electrical Risks
 - 5 V rail overload (Pi + USB near UPS 5 A limit, especially Pi 5 config)
-- Motor stall current (20 A) exceeds cell continuous rating
+- 4-motor stall exceeds cell 10 A continuous rating for high-stall motors (JGA25-370 ~25 A); chosen MP 7.2 A within ✓
 - I2C / GPIO at wrong voltage level
 - Noise coupling between motor power and logic wiring
 
@@ -276,11 +253,9 @@ Peak (heavy CPU + active OAK-D + lidar) hits UPS 5 A limit exactly — no margin
 
 - Final chassis design?
 - Wheel decision: RC airplane (4 mm set-screw hub) vs skate/scooter (needs hub adapter)? Confirm 4 mm D-shaft hub adapter exists for skate route before deciding.
-- Drive configuration confirmed (differential, 4-wheel paired)?
-- Verify Pololu 34:1 HP specs from datasheet (no-load speed, stall current, stall torque).
 - Motor variant (MP 67L chosen): verify torque adequate under real outdoor load — switch to HP #4844 if insufficient.
 - Outdoor use: what surface types, max slope angle, curb height? Affects torque margin calculation.
-- Configure RoboClaw 2x5A acceleration and current limits to stay within 5 A continuous per channel.
+- Configure RoboClaw 2x7A acceleration and current limits to stay within 7.5 A continuous per channel.
 - Which sensors required for first working version?
 - What payload margin beyond ~2 kg robot mass?
 - Initial ROS / Linorobot2 bringup path?
@@ -290,25 +265,33 @@ Peak (heavy CPU + active OAK-D + lidar) hits UPS 5 A limit exactly — no margin
 - Wire gauge and connector for motor rail — verify against real load current.
 - Measure actual motor current under real load at 1.0 m/s.
 - Encoder output signal voltage — 3.3 V safe or level shifting needed?
-- RoboClaw 2x5A to Pi: USB or TTL serial?
+- RoboClaw 2x7A to Pi: USB or TTL serial?
 - Battery monitoring integrated into ROS?
 - Are three installed cells new and matched?
 - Cytron MDD10A backup: which component handles encoder PID if used?
+- Yahboom 4-ch driver: per-channel continuous + peak current rating? (email support@yahboom.com) Must clear JGA25-370 6.2 A stall.
+- Yahboom 4-ch driver: ROS 2 / Linorobot2 driver exists, or custom I2C/serial node needed?
 
 ---
 
 ## 9. Backup Components
 
 ### [Cytron MDD10A](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels)
-Use if RoboClaw 2x5A unavailable. **No onboard encoder PID** — PID must run on Pi or separate microcontroller.
+Use if RoboClaw 2x7A unavailable. **No onboard encoder PID** — PID must run on Pi or separate microcontroller.
 7–30 V, 10 A continuous / 30 A peak per channel. Interfaces: PWM, RC, analog only.
+
+### [Yahboom 4-Channel Encoder Motor Drive Module](https://category.yahboom.net/products/quad-md-module) — Candidate
+4 **independent** channels (one per motor) → eliminates RoboClaw's paired-motor stall doubling. Onboard STM32F103RCT6 co-processor handles motor drive + encoder PID (like RoboClaw, offloads Pi). I2C + UART serial control; Pi/Jetson/STM32 targets. 4 encoder inputs. VIN "12.6 V recommended for 520 motors" — matches 3S full-charge rail ✓.
+- ⚠️ **Per-channel current rating not published** (chip + amps absent from spec page & USART manual). Deciding number — email support@yahboom.com. Need ≥ ~3 A cont / 6+ A peak to survive JGA25-370 6.2 A stall on its own channel.
+- ⚠️ **No known ROS 2 / Linorobot2 driver** — proprietary I2C/serial protocol; needs custom node. RoboClaw has mature driver; this is integration risk.
+- 520-motor VIN hint suggests higher-current driver than TB6612-class (1.2 A) — unconfirmed.
 
 ---
 
 ## 10. Superseded Components
 
 ### [DFRobot FIT0186 Gearmotor](https://www.dfrobot.com/product-634.html)
-Superseded by Pololu 34:1. DigiKey 1738-1106-ND. 12 V, 251 RPM, 7 A stall (14 A/channel paired — exceeds RoboClaw 2x5A peak), 700 CPR output encoder.
+Superseded by Pololu 34:1. DigiKey 1738-1106-ND. 12 V, 251 RPM, 7 A stall (14 A/channel paired — just under RoboClaw 2x7A 15 A peak, far above 7.5 A continuous ⚠️), 700 CPR output encoder.
 
 ### Motor Comparison: FIT0186 vs Pololu HP 34:1 vs Pololu MP 34:1
 
@@ -320,6 +303,20 @@ Superseded by Pololu 34:1. DigiKey 1738-1106-ND. 12 V, 251 RPM, 7 A stall (14 A/
 | Stall torque | 18 kg·cm | 11 kg·cm | 4.7 kg·cm |
 | Encoder CPR (output) | 700 | 1632 | 1632 |
 | 4-motor stall current | 28 A | 20 A | 7.2 A |
-| Paired channel stall | 14 A — exceeds RoboClaw 2x5A | 10 A — at peak ⚠️ | 3.6 A — within continuous ✓ |
+| Paired channel stall | 14 A — near 2x7A 15 A peak ⚠️ | 10 A — within 2x7A 15 A peak ✓ | 3.6 A — within continuous ✓ |
 | No-load speed (100 mm wheel) | ~1.31 m/s | ~1.57 m/s | ~1.20 m/s |
 | Price (each) | — | ~$50 | ~$50 |
+
+---
+
+## 11. Shop Motor Inventory
+
+Physical motors on hand in the shop. Catalog of what's available, independent of the chosen design. Use to evaluate substitutes against the limits in [Section 2 / Section 10](#10-superseded-components).
+
+| # | Motor | Qty | Voltage | No-load RPM | Stall current | Encoder | Condition | Notes |
+|---|---|---|---|---|---|---|---|---|
+| 1 | [TSINY TS-25GA370H-45](https://www.tsinymotor.com) (25 mm dia, 1:45) | ≥2 (confirm) | DC 12 V | 130 | TBD | 6-wire, hall (CPR TBD) | Installed on chassis | Gearbox "45" = 45:1 ratio. Encoder voltage TBD — verify 3.3 V safe ⚠️ |
+| 2 | SGM25-370 (25 mm dia) | TBD | DC 6 V | 280 | TBD | Magnetic, rear PCB + JST (CPR TBD) | Loose, on test wheel | ⚠️ 6 V motor — under-driven on 12 V rail or needs voltage limit. Encoder voltage TBD — verify 3.3 V safe |
+| 3 | [JGA25-370 1:32](https://www.amazon.com/dp/B0GV7J5DBY) (25 mm dia, 4 mm D-shaft) | 2-pack ×2 = 4 | DC 12 V | 260 (rated) | **6.2 A** | AB hall, 13 lines → 1664 CPR, **3.3–5 V** ✓, 6-pin PH2.0 | Candidate — not bought | 1.38 m/s @ 4" wheel ✓. Stall torque 8.7 kg·cm. Paired stall 12.4 A — within RoboClaw 2x7A 15 A peak ✓ but above 7.5 A continuous → accel limit + firmware current cap, avoid sustained stall. 4-motor 24.8 A ≫ cell 10 A continuous ⚠️. Encoder 3.3 V safe ✓ |
+
+> Fill in each row as motors are identified. Flag any with paired-channel stall > 15 A (exceeds RoboClaw 2x7A peak), or sustained draw > 7.5 A continuous, with ⚠️.

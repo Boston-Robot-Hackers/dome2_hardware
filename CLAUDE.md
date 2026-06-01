@@ -29,13 +29,13 @@ Hardware design documentation for **Dome3** — a differential-drive, 4-wheeled 
 - **Motor/battery rail:** 3S Li-ion pack (11.1 V nom / 12.6 V full, 38 Wh) → fuse → RoboClaw VIN.
 - UPS single switch cuts both rails simultaneously. Motor rail requires separate fuse + switch.
 
-**Motor controller:** RoboClaw 2x5A (Pololu #2394). 5 A continuous / 10 A peak per channel. Has onboard quadrature encoder PID — no separate MCU needed. Interfaces: USB or TTL serial to Pi.
+**Motor controller:** RoboClaw 2x7A V6B (Pololu #3682). 7.5 A continuous / 15 A peak per channel. (Replaces discontinued 2x5A #2394.) Has onboard quadrature encoder PID — no separate MCU needed. Interfaces: USB or TTL serial to Pi.
 
 **Backup controller:** Cytron MDD10A — no onboard PID; encoder PID would run on Pi.
 
 **Critical limits to preserve in all edits:**
-- Paired motor stall = ~10 A/channel → exactly at RoboClaw 2x5A peak. Zero margin. Acceleration limiting is essential.
-- 4-motor stall (20 A total) exceeds cell 10 A continuous rating. Sustained stall must be avoided.
+- Chosen MP motor: paired stall ~3.6 A/channel — well within RoboClaw 2x7A 7.5 A continuous. Candidate JGA25-370: paired stall 12.4 A — within 15 A peak but above continuous; requires acceleration + current limiting, no sustained stall.
+- 4-motor stall exceeds cell 10 A continuous rating for high-stall motors (JGA25-370 ~24.8 A). Sustained stall must be avoided.
 - 5 V rail: Pi 5 + OAK-D Lite at peak = 5.0 A exactly — no margin.
 - All GPIO/I2C signals must be 3.3 V safe.
 
