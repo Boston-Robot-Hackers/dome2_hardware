@@ -256,10 +256,29 @@ Peak (heavy CPU + active OAK-D + lidar) = 4.68 A — within UPS 5 A limit ✓ (~
 
 Physical motors on hand in the shop. Catalog of what's available, independent of the chosen design. Use to evaluate substitutes against the limits in Section 2.
 
-| # | Motor | Qty | Voltage | No-load RPM | Stall current | Encoder | Condition | Notes |
-|---|---|---|---|---|---|---|---|---|
-| 1 | [TSINY TS-25GA370H-45](https://makerselectronics.com/product/dc-motor-ga25-370-with-encoder-4-4kg-130rpm-12v-with-bracket/) (25 mm dia, ~46.8:1) | ≥2 (confirm) | DC 12 V | 130 | 1.8 A stall | 6-wire, hall (CPR TBD — measure) | Installed on chassis | Stall torque 4.4 kg·cm, nearly identical to MP #4864. Encoder CPR not on datasheet — count pulses to determine. Encoder voltage TBD — verify 3.3 V safe before connecting to ESP32 ⚠️ |
-| 2 | SGM25-370 (25 mm dia) | TBD | DC 6 V | 280 | TBD | Magnetic, rear PCB + JST (CPR TBD) | Loose, on test wheel | ⚠️ 6 V motor — under-driven on 12 V rail or needs voltage limit. Encoder voltage TBD — verify 3.3 V safe |
-| 3 | [JGA25-370 1:32](https://www.amazon.com/dp/B0GV7J5DBY) (model MC370P34_V12_R13, 25 mm dia, 4 mm D-shaft offset, 96 g) | 2-pack ×2 = 4 | DC 12 V | 260 ±10% (rated) | **6.2 A** (rated 1.1 A) | AB hall, 13 lines → 1664 CPR, **3.3–5 V** ✓, integrated pull-ups, 6-pin PH2.0 | **Chosen — buy** | 1.38 m/s @ 4" wheel ✓. Rated torque 1.5 kg·cm, stall torque 8.7 kg·cm. Paired stall 12.4 A — exceeds MDD10A 10 A continuous ⚠️ within 30 A peak → firmware current cap + avoid sustained stall. 4-motor 24.8 A ≫ cell 10 A continuous ⚠️. Encoder Vcc must wire to ESP32 3.3 V — pull-ups follow Vcc, 5 V power → 5 V signals → fries ESP32 GPIO ⚠️ |
+Flag any with single-motor stall > 10 A (exceeds MDD10A continuous) or 4-motor stall > 10 A (exceeds cell continuous) with ⚠️.
 
-> Fill in each row as motors are identified. Flag any with paired-channel stall > 10 A (exceeds MDD10A continuous) or 4-motor stall > 10 A (exceeds cell continuous) with ⚠️.
+| # | Motor | Qty | Voltage | No-load RPM | Speed @ 4" wheel | Stall current | Stall torque | Encoder | Condition |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | [TSINY TS-25GA370H-45](https://makerselectronics.com/product/dc-motor-ga25-370-with-encoder-4-4kg-130rpm-12v-with-bracket/) 25 mm, ~46.8:1 | ≥2 (confirm) | 12 V | 130 RPM | **0.69 m/s ⚠️** | 1.8 A ✓ | 4.4 kg·cm | 6-wire hall, CPR TBD | Installed on chassis |
+| 2 | SGM25-370 25 mm | TBD | **6 V ⚠️** | 280 RPM | ~1.49 m/s (at 6 V) | TBD | TBD | Magnetic, JST, CPR TBD | Loose, on test wheel |
+| 3 | [JGA25-370 1:32](https://www.amazon.com/dp/B0GV7J5DBY) 25 mm, MC370P34_V12_R13 | 4 (2×2-pack) | 12 V | 260 RPM | 1.39 m/s ✓ | 6.2 A ✓ | 8.7 kg·cm | AB hall, 1664 CPR, 3.3–5 V, PH2.0 | **Chosen — buy** |
+
+### Motor Notes
+
+**#1 TSINY TS-25GA370H-45**
+- ⚠️ 130 RPM → 0.69 m/s at 4" wheel — **below 1.0 m/s target**; not viable as primary motor without wheel change
+- Stall current 1.8 A — within MDD10A and cell limits ✓
+- Stall torque 4.4 kg·cm — adequate for 5° slope ✓
+- Encoder CPR not on datasheet — count pulses to determine
+- ⚠️ Encoder voltage TBD — verify 3.3 V safe before connecting to ESP32
+
+**#2 SGM25-370**
+- ⚠️ 6 V rated — under-driven on 12 V rail; needs PWM duty limiting or separate regulator; not directly usable
+- ⚠️ Encoder voltage TBD — verify 3.3 V safe
+
+**#3 JGA25-370 1:32 — Chosen**
+- 1.39 m/s @ 4" wheel, 39% margin over 1.0 m/s target ✓
+- Single-motor stall 6.2 A — within MDD10A 10 A continuous ✓ (1 motor per channel)
+- 4-motor stall 24.8 A ≫ cell 10 A continuous ⚠️ — firmware current limit required
+- ⚠️ Encoder Vcc must wire to ESP32 3.3 V — pull-ups follow Vcc; 5 V → 5 V signals → fries ESP32 GPIO
