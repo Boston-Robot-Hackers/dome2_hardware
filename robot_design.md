@@ -218,37 +218,7 @@ Per-motor current: ~200 mA typical driving, 6.2 A stall (JGA25-370).
 
 ---
 
-## 5. Integration Plan
-
-
-1. Confirm mechanical layout and component placement.
-2. Validate battery and UPS wiring without motors.
-3. Bring up Pi on regulated 5 V.
-4. Test motor power via MDD10A separately; verify JGA25-370 spins correctly at low duty cycle.
-5. Bring up ESP32 with linorobot2_hardware firmware; confirm USB serial link to Pi (`micro_ros_agent`).
-6. Wire ESP32 GPIO → MDD10A; confirm motors respond to `/cmd_vel`; verify firmware current limiting active.
-7. Validate odometry — encoder reads through ESP32 to ROS.
-8. Add sensors, confirm full power budget.
-9. Run controlled driving tests.
-
----
-
-## 6. Test Plan
-
-| Test | Purpose | Status |
-|---|---|---|
-| 5 V rail voltage test | Confirm stable Pi power | TBD |
-| Battery rail voltage test | Confirm 3S voltage range | TBD |
-| Idle current test | Estimate baseline runtime | TBD |
-| Motor current test | Confirm driver and battery margin | TBD |
-| GPIO signal check | Confirm 3.3 V-safe signals | TBD |
-| ROS bringup test | Confirm software stack starts cleanly | TBD |
-| Drive test | Confirm motor direction and control | TBD |
-| Odometry test | Confirm encoder direction and scale | TBD |
-
----
-
-## 7. Alternate Configuration: Pi 5
+## 5. Alternate Configuration: Pi 5
 
 OAK-D Lite chosen for both configs. Swap-in upgrade is compute only. Motors, motor controller, chassis, battery, camera unchanged.
 
@@ -282,7 +252,7 @@ Peak (heavy CPU + active OAK-D + lidar) = 4.68 A — within UPS 5 A limit ✓ (~
 ---
 
 
-## 8. Shop Motor Inventory
+## 6. Shop Motor Inventory
 
 Physical motors on hand in the shop. Catalog of what's available, independent of the chosen design. Use to evaluate substitutes against the limits in Section 2.
 
