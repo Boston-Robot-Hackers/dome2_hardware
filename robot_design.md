@@ -9,16 +9,14 @@ Living design document: mechanical, electrical, software, controls, integration,
 | Item | Link | Role | Status |
 |---|---|---|---|
 | Raspberry Pi 4 Model B | [Manufacturer](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) | Main ROS computer | Known |
-| Raspberry Pi I2C Shim | TBD | I2C expansion | Known — exact model TBD |
 | Waveshare UPS Module 3S | [Manufacturer](https://www.waveshare.com/product/ups-module-3s.htm) | Battery UPS, 5 V supply | Known |
 | Panasonic NCR18650GA cells ×3 (+1 spare) | [Manufacturer](https://energy.panasonic.com/eu/business/products/lithium-ion/models/NCR18650GA) | 3S battery pack | Known |
-| Pololu 25D MP 34:1 gearmotor w/encoder ×4 | [Pololu #4864](https://www.pololu.com/product/4864) | Drive motors | **Chosen** — ~$50/ea × 4 = ~$200 ⚠️ |
-| RoboClaw 2x7A (V6B) | [Pololu](https://www.pololu.com/product/3682) | Motor controller | **Chosen** |
-| Cytron MDD10A | [Cytron](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels) | Backup motor controller | Backup |
-| Wheels ×4 | TBD | Drive wheels | Required — ~100 mm diameter, 4 mm D-shaft, decision pending |
-| Camera | TBD | Vision sensor | TBD |
-| Lidar | TBD | 2D navigation sensor | TBD |
-| I2C peripherals | TBD | Battery/status/sensor peripherals | TBD |
+| Pololu 25D MP 34:1 gearmotor w/encoder ×4 | [Pololu #4864](https://www.pololu.com/product/4864) | Drive motors | **Chosen** — ~$200 total ⚠️ cost; see JGA25-370 alternative (~$35) |
+| Cytron MDD10A ×2 | [Cytron](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels) | Motor driver (2 per robot, 2 motors each) | **Chosen** |
+| ESP32-S3 DevKitC-1 | [Espressif](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/esp32s3/user-guide-devkitc-1.html) | micro-ROS motor controller node | **Chosen** |
+| RC Airplane Wheels 4" ×4 | TBD | Drive wheels | **Chosen** — 4" (~102 mm), 4 mm set-screw hub, foam/rubber |
+| Luxonis OAK-D Lite | [Luxonis](https://shop.luxonis.com/products/oak-d-lite-1) | Vision sensor (stereo depth + RGB + VPU) | **Chosen** |
+| LDROBOT LD19 | [LDROBOT](https://www.ldrobot.com/product/en/98) | 2D navigation lidar | **Chosen** |
 
 ---
 
@@ -26,9 +24,6 @@ Living design document: mechanical, electrical, software, controls, integration,
 
 ### [Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/)
 Power: 5 V USB-C from UPS module. Interfaces: USB (sensors/camera/lidar), GPIO (3.3 V safe only), I2C (check address conflicts), Ethernet/Wi-Fi.
-
-### Raspberry Pi I2C Shim
-3.3 V logic, SDA/SCL on GPIO2/GPIO3. Verify all connected devices use 3.3 V logic or have level shifting. Exact product TBD.
 
 ### [Waveshare UPS Module (3S)](https://www.waveshare.com/product/ups-module-3s.htm)
 - Input: 3S Li-ion, 9.0–12.6 V
@@ -39,82 +34,108 @@ Power: 5 V USB-C from UPS module. Interfaces: USB (sensors/camera/lidar), GPIO (
 - Charge and discharge simultaneously: yes
 - **Single switch controls both 5 V and XH2.54 outputs** — both rails go down together
 - Charge input: 12.6 V / 2 A external power adapter
-- Verify XH2.54 connector and internal trace current rating for motor use (XH connectors typically rated ~3 A; 4-motor stall ~7 A chosen MP, up to ~25 A high-stall candidates)
+- Verify XH2.54 connector and internal trace current rating for motor use (XH connectors typically rated ~3 A; 4-motor stall ~7.2 A chosen MP)
 
 ### [Panasonic NCR18650GA Cells](https://energy.panasonic.com/eu/business/products/lithium-ion/models/NCR18650GA)
 4 cells (3 installed, 1 spare). Per cell: 18650, Li-ion, 3450 mAh, 3.6–3.7 V nominal, 4.2 V full, 10 A continuous.
 3S pack: 11.1 V nominal / 12.6 V full, 3450 mAh, ~38 Wh. Runtime: ~3.8 h @ 10 W · ~1.9 h @ 20 W · ~1.3 h @ 30 W.
 
 ### [Pololu 34:1 Metal Gearmotor 25Dx67L mm MP 12V](https://www.pololu.com/product/4864) — Chosen
-Pololu #4864. ~$50/ea × 4 = ~$200 total. ⚠️ High unit cost — verify before ordering all 4.
+Pololu #4864. ~$50/ea × 4 = ~$200 total. ⚠️ High unit cost — see JGA25-370 below for cheaper alternative.
 12 VDC, 230 RPM no-load, 4 mm D-shaft, 25 mm body.
 - No-load: 100 mA, ~1.2 W
-- Stall: 1.8 A, ~21.6 W, 4.7 kg·cm (0.46 N·m)
+- Stall: 1.8 A, 4.7 kg·cm (0.46 N·m)
 - Encoder: quadrature Hall effect, 48 CPR motor shaft, 1632 CPR output shaft
-- 4 motors no-load: 0.4 A, ~4.8 W · paired channel stall: ~3.6 A — **well within RoboClaw 2x7A 7.5 A continuous ✓**
-- 4-motor stall: 7.2 A — within cell 10 A continuous rating ✓
-- Pololu recommended continuous torque limit: 4 kg·cm; intermittent: 8 kg·cm — stall torque (4.7 kg·cm) is above continuous limit ⚠️ avoid sustained high-load operation
-- Verify encoder output signal voltage before connecting to Pi GPIO.
+- Paired channel stall: ~3.6 A — well within MDD10A 10 A continuous ✓
+- 4-motor stall: 7.2 A — within cell 10 A continuous ✓
+- Pololu continuous torque limit: 4 kg·cm — stall torque (4.7 kg·cm) above limit ⚠️ avoid sustained high-load
+- Verify encoder signal voltage before connecting to ESP32 GPIO.
 
-### MP 67L (chosen) vs HP 67L alternative
+**MP vs HP:** MP chosen for lower current; HP #4844 fallback if torque insufficient. Full comparison in Section 9.
 
-HP 67L = [Pololu #4844](https://www.pololu.com/product/4844). Full 3-way comparison (incl. superseded FIT0186) in **Section 10**.
+### JGA25-370 1:32 — Cheaper Alternative (not yet bought)
 
-- **MP chosen:** paired stall 3.6 A / 4-motor stall 7.2 A — within RoboClaw continuous + cell ratings (HP: 10 A / 20 A — at controller peak, over cell rating). 3× lower idle current → longer runtime. 230 RPM → ~1.20 m/s, clears 1.0 m/s target.
-- **MP risk:** stall torque 4.7 kg·cm vs HP 11 kg·cm — adequate for flat indoor + light outdoor, marginal on steep slopes/curbs. Switch to HP #4844 if real-load torque insufficient.
+[Amazon B0GV7J5DBY](https://www.amazon.com/dp/B0GV7J5DBY) — ~$15–20 per 2-pack × 2 = **~$30–40 total** vs $200 for Pololu. Same 25 mm body, 4 mm D-shaft.
+- 12 VDC, 260 RPM → 1.38 m/s ✓
+- Stall: 6.2 A, 8.7 kg·cm — higher torque than MP ✓
+- Encoder: 1664 CPR, 3.3–5 V (safe if encoder Vcc wired to 3.3 V ⚠️)
+- Paired channel stall: 12.4 A — **exceeds MDD10A 10 A continuous** ⚠️ within 30 A peak; needs firmware current limit + no sustained stall
+- 4-motor stall: 24.8 A ≫ cell 10 A continuous ⚠️ — sustained stall kills battery
+- **Verdict:** $160 cheaper, adequate speed + better torque, but tighter current margins. Viable with care; MP is safer.
 
-### Wheels — Decision Pending
+### Wheels — Chosen: 4" RC Airplane Wheels
 
-Motor output shaft: 4 mm D-shaft. Target diameter: ~100 mm (verified against 1.0 m/s speed budget).
-Two candidate types:
+**Chosen:** 4-inch (~102 mm) RC airplane wheels with 4 mm set-screw hub. Motor output shaft 4 mm D-shaft engages set screw directly — no adapter.
 
-#### Inline Skate / Scooter Wheels
-Examples: inline skate wheels (72–110 mm), kick scooter wheels (100–125 mm).
-- **Hub:** designed for 608 bearings (8 mm ID bore) — **not direct fit on 4 mm D-shaft**; needs hub adapter or press-fit insert
-- **Diameter:** 100 mm readily available (inline skate = 90–110 mm, scooter = 100–125 mm)
-- **Material:** polyurethane, hardness 78A–88A (harder = faster/less grip, softer = more grip/wear)
-- **Tread:** smooth or lightly textured — good on hard floors, less grip on loose outdoor surfaces
-- **Width:** ~24 mm (inline) — adequate for stability
-- **Weight:** moderate (~100–150 g each)
-- **Cost:** cheap — $10–30 for a set of 4
-- **Availability:** hardware/sports stores, Amazon
-- ⚠️ Hub adapter required for 4 mm D-shaft — adds complexity, potential slop
-
-#### RC Airplane Wheels
-Examples: Du-Bro, Dubro, generic foam/rubber RC wheels (2.5"–4" = 63–100 mm).
-- **Hub:** typically 3–6 mm shaft hole with set screw — **4 mm versions exist**, D-shaft flat engages set screw directly ✓
-- **Diameter:** 100 mm = ~4" — available but less common; 3" (76 mm) and 4" (102 mm) standard sizes
-- **Material:** foam or soft rubber — more compliant, better grip on varied surfaces
-- **Tread:** foam (smooth, light grip) or rubber tread (better outdoor grip)
-- **Width:** ~25–35 mm — similar to skate
+- **Hub:** 4 mm set-screw hub — D-shaft flat engages directly ✓
+- **Diameter:** 4" ≈ 102 mm — close enough to 100 mm target; speed calc uses 102 mm
+- **Material:** foam or soft rubber — compliant, good grip on varied surfaces
+- **Width:** ~25–35 mm
 - **Weight:** very light (~30–60 g each)
 - **Cost:** $5–15 each from hobby shops
 - **Availability:** RC hobby suppliers (HobbyKing, Amazon, local shops)
-- ✓ D-shaft compatible without adapter if set screw hub
-- ⚠️ Foam wheels compress under load — diameter and speed estimates may shift slightly
-- ⚠️ Less durable than PU skate wheels under sustained outdoor use
-
-#### Wheel Comparison
-
-| Parameter | Skate/Scooter | RC Airplane |
-|---|---|---|
-| Diameter (100 mm) | ✓ easy to find | ✓ 4" ≈ 102 mm close enough |
-| D-shaft fit | ⚠️ adapter needed | ✓ set screw hub (4 mm) |
-| Grip — hard floor | ✓ good | ✓ good |
-| Grip — outdoor/rough | ⚠️ marginal | ✓ better (compliant) |
-| Weight | moderate | light |
-| Durability | ✓ high | ⚠️ foam wears faster |
-| Cost (×4) | ✓ $10–30 total | ~$20–60 total |
-| Availability | ✓ local stores | hobby shops / online |
-
-**Recommendation:** RC airplane wheels if 4 mm D-shaft set-screw hub confirmed — simplest fit, lighter, good grip. Skate wheels viable if hub adapter sourced and lower cost matters more than grip.
+- ⚠️ Foam compresses under load — actual diameter and speed may shift slightly; measure under real load
+- ⚠️ Less durable than polyurethane skate wheels under sustained outdoor use
 
 ---
 
-### [RoboClaw 2x7A Motor Controller (V6B)](https://www.pololu.com/product/3682) — Chosen
-2-channel brushed DC, 6–34 V, **7.5 A continuous / 15 A peak per channel**. (Replaces discontinued 2x5A, Pololu #2394.)
-Interfaces: USB, TTL serial, RC, analog. Dual quadrature encoder inputs. Built-in speed/position PID.
-Paired MP 34:1 motors stall at ~3.6 A/channel — well within 7.5 A continuous limit ✓. Higher 15 A peak also brings the high-stall JGA25-370 (paired 12.4 A) inside peak — see Section 11.
+### LDROBOT LD19 — Chosen
+
+360° 2D lidar, triangulation, indoor use. ROS 2 driver: `ldrobot_lidar_ros2` (official).
+- Interface: USB (CDC serial, no driver install needed on Linux) — plug into Pi USB port
+- Power: 5 V USB bus-powered, ~180 mA / ~0.9 W typical
+- Range: 0.02–12 m · scan rate: 10 Hz · angular resolution: ~1°
+- ⚠️ Indoor-optimized — strong sunlight or highly reflective surfaces degrade accuracy
+- Verify `ldrobot_lidar_ros2` package compatibility with target ROS 2 distro before integration
+
+---
+
+### [Luxonis OAK-D Lite](https://shop.luxonis.com/products/oak-d-lite-1) — Chosen
+
+Stereo depth + RGB + onboard MyriadX VPU. ROS 2 driver: `depthai-ros`.
+- Interface: USB 3.0 (USB-C), bus-powered — **requires USB 3.0 port** (Pi 4B has 2×USB 3.0 ✓; Pi 5 preferred for bandwidth headroom)
+- Typical: ~400 mA / ~2 W · peak (active inference + streaming): up to **1.0 A / ~5 W**
+- ⚠️ Pi 4B + OAK-D Lite peak 5V rail: Pi 4B 2.5 A + OAK-D 1.0 A + LD19 0.18 A = **3.68 A — within 5 A UPS limit ✓**
+- ⚠️ `depthai-ros` stability on ROS 2 Humble/Jazzy — verify before integration
+
+---
+
+### [Cytron MDD10A](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels) ×2 — Chosen
+
+2-channel brushed DC driver. 7–30 V, **10 A continuous / 30 A peak per channel**. One MDD10A per motor pair (L and R); two units for 4-motor SKID_STEER.
+- Interface: PWM + DIR per channel — matches `USE_GENERIC_1_IN_MOTOR_DRIVER` in linorobot2_hardware ✓
+- MP motor stall 1.8 A/channel — well within 10 A continuous ✓
+- Logic input: 3.3 V compatible ✓ — direct ESP32 GPIO connection, no level shifting needed
+- Power: motor rail (9–12.6 V) direct from battery
+
+### ESP32-S3 DevKitC-1 — Chosen
+
+Runs [linorobot2_hardware](https://github.com/hippo5329/linorobot2_hardware) micro-ROS firmware. Subscribes to `/cmd_vel`, runs PID, drives MDD10A via GPIO, reads encoders directly, publishes `/odom/unfiltered` to Pi.
+- **Firmware base:** `LINO_BASE SKID_STEER` (4WD paired L/R)
+- **Motor driver firmware:** `USE_GENERIC_1_IN_MOTOR_DRIVER`
+- **PlatformIO board:** `esp32-s3-devkitc-1`
+- **Interface to Pi:** USB serial at 921600 baud; Pi runs `micro_ros_agent serial --dev /dev/ttyUSB0`
+- **Encoders:** wire directly to ESP32 GPIO (8 pins: A+B × 4 motors)
+- **Motor GPIO per channel:** PWM pin + DIR pin × 4 motors = 8 GPIO pins
+- **Power:** 5 V via UART USB port from Pi
+- ⚠️ DevKitC-1 has two USB-C ports — use **UART port** (not USB-OTG) for Pi serial and flashing
+- **Mounting:** no screw holes — 3D-printed snap-fit bracket (board 69.4 × 26.0 mm). Search Printables/Thingiverse "ESP32-S3 DevKitC mount" before modeling.
+
+### Key firmware config (lino_base_config.h)
+
+```c
+#define LINO_BASE SKID_STEER
+#define USE_GENERIC_1_IN_MOTOR_DRIVER
+#define MOTOR_MAX_RPM       230
+#define MOTOR_OPERATING_VOLTAGE  12
+#define MOTOR_POWER_MAX_VOLTAGE  12
+#define COUNTS_PER_REV1     1632   // MP 34:1 output shaft (48 CPR × 34)
+#define COUNTS_PER_REV2     1632
+#define COUNTS_PER_REV3     1632
+#define COUNTS_PER_REV4     1632
+#define WHEEL_DIAMETER      0.102  // 4" RC wheels
+// LR_WHEELS_DISTANCE: measure from physical chassis
+```
 
 ---
 
@@ -122,8 +143,8 @@ Paired MP 34:1 motors stall at ~3.6 A/channel — well within 7.5 A continuous l
 
 **Use case: indoor + outdoor.** Outdoor terrain, surface transitions, and small obstacles raise torque demand significantly vs. flat indoor floor.
 
-Chosen MP #4864, 100 mm wheels, ~2 kg robot:
-- **Speed:** 1.0 m/s needs ~191 RPM; 230 RPM no-load → ~1.20 m/s, ~20% margin ✓
+Chosen MP #4864, 4" RC airplane wheels (~102 mm), ~2 kg robot:
+- **Speed:** 1.0 m/s needs ~188 RPM; 230 RPM no-load → ~1.23 m/s, ~23% margin ✓
 - **Torque:** 4.7 kg·cm stall, Pololu limit 4 kg·cm continuous / 8 kg·cm intermittent — adequacy + HP fallback in Section 2. Avoid sustained high-torque operation.
 - **Odometry:** 1632 CPR output (48 × 34) — good resolution.
 
@@ -133,8 +154,8 @@ Chosen MP #4864, 100 mm wheels, ~2 kg robot:
 
 ### Power Budget — 5 V Rail (25 W max)
 - Raspberry Pi 4B: 600 mA idle / 1.2 A typical / 2.5 A heavy — source: RPi foundation
-- USB camera: ~300 mA · USB lidar: ~500 mA · I2C: negligible
-- **Typical total: ~2.0 A / ~10 W — 60% headroom ✓**
+- OAK-D Lite: ~400 mA typical / 1.0 A peak · LD19 lidar: ~180 mA · ESP32-S3: ~100 mA typical
+- **Typical total: ~2.3 A / ~11.5 W — 54% headroom ✓** · peak (OAK-D + heavy CPU): ~4.2 A ✓
 
 ### Power Budget — Battery Rail (9.0–12.6 V)
 Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
@@ -150,8 +171,8 @@ Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
 **Runtime (38 Wh pack):** typical driving ~108 min · heavy load ~59 min · idle ~138 min
 
 **Key limits:**
-- 5 V rail: ~2 A of 5 A used ✓
-- RoboClaw 2x7A: paired stall 3.6 A/channel — within 7.5 A continuous ✓ (ample margin)
+- 5 V rail: ~2.2 A of 5 A used ✓
+- MDD10A: 1.8 A stall/channel — well within 10 A continuous ✓ (ample margin)
 - Stall: 7.2 A total — within cell 10 A continuous rating ✓
 - Fuse: 10 A for bench test; motor stall budget peaks at ~8.3 A total ✓
 
@@ -163,7 +184,7 @@ Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
 
 ### Electrical Risks
 - 5 V rail overload (Pi + USB near UPS 5 A limit, especially Pi 5 config)
-- 4-motor stall exceeds cell 10 A continuous rating for high-stall motors (JGA25-370 ~25 A); chosen MP 7.2 A within ✓
+- 4-motor stall (MP): 7.2 A total — within cell 10 A continuous ✓
 - I2C / GPIO at wrong voltage level
 - Noise coupling between motor power and logic wiring
 
@@ -172,7 +193,6 @@ Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
 - All control electronics share common ground.
 - GPIO and I2C signals must be 3.3 V safe.
 - Encoder power 5 V; verify signal voltage before connecting to Pi GPIO.
-- I2C address conflicts must be checked once all devices are selected.
 - Avoid sustained motor stall.
 
 ---
@@ -183,10 +203,10 @@ Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
 1. Confirm mechanical layout and component placement.
 2. Validate battery and UPS wiring without motors.
 3. Bring up Pi on regulated 5 V.
-4. Confirm I2C bus and power-monitoring interface.
-5. Add RoboClaw, test motor power separately.
-6. Integrate motor control with ROS / Linorobot2.
-7. Add encoders, validate odometry.
+4. Add RoboClaw, test motor power separately via USB.
+5. Bring up ESP32 with linorobot2_hardware firmware; confirm USB serial link to Pi (`micro_ros_agent`).
+6. Wire ESP32 GPIO → motor driver (per RoboClaw interface decision); confirm motors respond to `/cmd_vel`.
+7. Validate odometry — encoder reads through ESP32 to ROS.
 8. Add sensors, confirm full power budget.
 9. Run controlled driving tests.
 
@@ -200,7 +220,6 @@ Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
 | Battery rail voltage test | Confirm 3S voltage range | TBD |
 | Idle current test | Estimate baseline runtime | TBD |
 | Motor current test | Confirm driver and battery margin | TBD |
-| I2C scan | Detect devices and address conflicts | TBD |
 | GPIO signal check | Confirm 3.3 V-safe signals | TBD |
 | ROS bringup test | Confirm software stack starts cleanly | TBD |
 | Drive test | Confirm motor direction and control | TBD |
@@ -208,25 +227,19 @@ Per-motor current: 100 mA no-load, ~200 mA typical driving, 1.8 A stall.
 
 ---
 
-## 7. Alternate Configuration: Pi 5 + OAK-D Lite
+## 7. Alternate Configuration: Pi 5
 
-Swap-in upgrade. Motors, motor controller, chassis, battery unchanged.
+OAK-D Lite chosen for both configs. Swap-in upgrade is compute only. Motors, motor controller, chassis, battery, camera unchanged.
 
 | Component | Base | Alternate |
 |---|---|---|
 | Compute | Raspberry Pi 4B | Raspberry Pi 5 |
-| Vision | TBD USB/CSI camera | [Luxonis OAK-D Lite](https://shop.luxonis.com/products/oak-d-lite-1) |
+| Vision | Luxonis OAK-D Lite | Luxonis OAK-D Lite (same) |
 
 ### [Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)
 Replaces Pi 4B. Higher performance, native USB 3.0. GPIO/I2C pinout compatible with Pi 4B.
 - Idle: ~1.0 A / ~5 W · typical: ~1.8 A / ~9 W · heavy: ~3.5 A / ~17.5 W (RPi foundation)
 - Requires 5V/5A supply — same Waveshare UPS, near limit under heavy load
-
-### [Luxonis OAK-D Lite](https://shop.luxonis.com/products/oak-d-lite-1)
-Replaces generic USB camera. Stereo depth + RGB + onboard MyriadX VPU.
-- Interface: USB 3.0 (USB-C), bus-powered
-- Typical: ~400 mA / ~2 W · peak (active inference + streaming): up to **1.0 A / ~5 W**
-- ROS 2 driver: `depthai-ros`
 
 ### 5 V Rail — Pi 5 + OAK-D Lite
 
@@ -234,17 +247,15 @@ Replaces generic USB camera. Stereo depth + RGB + onboard MyriadX VPU.
 |---|---|---|---|
 | Raspberry Pi 5 | 1.8 A / 9 W | 3.5 A / 17.5 W | RPi foundation |
 | OAK-D Lite | 0.4 A / 2 W | 1.0 A / 5 W | peak under active inference |
-| USB lidar | 0.5 A / 2.5 W | 0.5 A / 2.5 W | |
-| **Total** | **2.7 A / 13.5 W ✓** | **5.0 A / 25 W ⚠️** | at UPS hard limit |
+| LD19 lidar | 0.18 A / 0.9 W | 0.18 A / 0.9 W | |
+| **Total** | **2.38 A / 11.9 W ✓** | **4.68 A / 23.4 W ✓** | within 5 A UPS limit |
 
-Peak (heavy CPU + active OAK-D + lidar) hits UPS 5 A limit exactly — no margin. Avoid simultaneous sustained heavy CPU and active inference, or upgrade 5 V supply.
+Peak (heavy CPU + active OAK-D + lidar) = 4.68 A — within UPS 5 A limit ✓ (~320 mA margin). Avoid simultaneous sustained heavy CPU and active inference to preserve margin.
 
 **Runtime:** 5 V rail ~16 W typical from battery · typical total ~40 W → **~57 min** · heavy ~53 W → **~43 min**
 
 ### Open Questions — Pi 5 config
 - Linorobot2 compatibility with Pi 5 / Ubuntu confirmed?
-- `depthai-ros` stable on ROS 2 Humble/Jazzy?
-- Does OAK-D Lite depth replace lidar or supplement it?
 - UPS 5 V output stable at 4.5–5 A sustained — measure under real load.
 
 ---
@@ -252,43 +263,30 @@ Peak (heavy CPU + active OAK-D + lidar) hits UPS 5 A limit exactly — no margin
 ## 8. Open Questions
 
 - Final chassis design?
-- Wheel decision: RC airplane (4 mm set-screw hub) vs skate/scooter (needs hub adapter)? Confirm 4 mm D-shaft hub adapter exists for skate route before deciding.
+- Does OAK-D Lite depth replace lidar or supplement it?
+- `depthai-ros` stable on ROS 2 Humble/Jazzy — verify before integration.
 - Motor variant (MP 67L chosen): verify torque adequate under real outdoor load — switch to HP #4844 if insufficient.
 - Outdoor use: what surface types, max slope angle, curb height? Affects torque margin calculation.
-- Configure RoboClaw 2x7A acceleration and current limits to stay within 7.5 A continuous per channel.
-- Which sensors required for first working version?
+- Verify `ldrobot_lidar_ros2` ROS 2 distro compatibility.
+- LD19 mounting position — confirm clearance from chassis frame.
 - What payload margin beyond ~2 kg robot mass?
 - Initial ROS / Linorobot2 bringup path?
 - Raspberry Pi RAM size?
-- Exact I2C shim model?
 - Charger/power adapter model?
 - Wire gauge and connector for motor rail — verify against real load current.
 - Measure actual motor current under real load at 1.0 m/s.
-- Encoder output signal voltage — 3.3 V safe or level shifting needed?
-- RoboClaw 2x7A to Pi: USB or TTL serial?
+- Encoder output signal voltage — 3.3 V safe or level shifting needed? Verify MP #4864 encoder signal level before connecting to Pi GPIO.
+- `LR_WHEELS_DISTANCE` — measure from physical chassis once built.
+- IMU: add one? linorobot2_hardware supports MPU6050 and others for EKF fusion.
 - Battery monitoring integrated into ROS?
 - Are three installed cells new and matched?
-- Cytron MDD10A backup: which component handles encoder PID if used?
-- Yahboom 4-ch driver: per-channel continuous + peak current rating? (email support@yahboom.com) Must clear JGA25-370 6.2 A stall.
-- Yahboom 4-ch driver: ROS 2 / Linorobot2 driver exists, or custom I2C/serial node needed?
 
 ---
 
-## 9. Backup Components
+## 9. Superseded Components
 
-### [Cytron MDD10A](https://www.cytron.io/p-10amp-5v-30v-dc-motor-driver-2-channels)
-Use if RoboClaw 2x7A unavailable. **No onboard encoder PID** — PID must run on Pi or separate microcontroller.
-7–30 V, 10 A continuous / 30 A peak per channel. Interfaces: PWM, RC, analog only.
-
-### [Yahboom 4-Channel Encoder Motor Drive Module](https://category.yahboom.net/products/quad-md-module) — Candidate
-4 **independent** channels (one per motor) → eliminates RoboClaw's paired-motor stall doubling. Onboard STM32F103RCT6 co-processor handles motor drive + encoder PID (like RoboClaw, offloads Pi). I2C + UART serial control; Pi/Jetson/STM32 targets. 4 encoder inputs. VIN "12.6 V recommended for 520 motors" — matches 3S full-charge rail ✓.
-- ⚠️ **Per-channel current rating not published** (chip + amps absent from spec page & USART manual). Deciding number — email support@yahboom.com. Need ≥ ~3 A cont / 6+ A peak to survive JGA25-370 6.2 A stall on its own channel.
-- ⚠️ **No known ROS 2 / Linorobot2 driver** — proprietary I2C/serial protocol; needs custom node. RoboClaw has mature driver; this is integration risk.
-- 520-motor VIN hint suggests higher-current driver than TB6612-class (1.2 A) — unconfirmed.
-
----
-
-## 10. Superseded Components
+### [RoboClaw 2x7A Motor Controller (V6B)](https://www.pololu.com/product/3682)
+Superseded by 2× Cytron MDD10A. RoboClaw incompatible with linorobot2_hardware GPIO motor driver interface (no PWM+DIRA+DIRB input mode). MDD10A is directly supported and simpler.
 
 ### [DFRobot FIT0186 Gearmotor](https://www.dfrobot.com/product-634.html)
 Superseded by Pololu 34:1. DigiKey 1738-1106-ND. 12 V, 251 RPM, 7 A stall (14 A/channel paired — just under RoboClaw 2x7A 15 A peak, far above 7.5 A continuous ⚠️), 700 CPR output encoder.
@@ -303,8 +301,8 @@ Superseded by Pololu 34:1. DigiKey 1738-1106-ND. 12 V, 251 RPM, 7 A stall (14 A/
 | Stall torque | 18 kg·cm | 11 kg·cm | 4.7 kg·cm |
 | Encoder CPR (output) | 700 | 1632 | 1632 |
 | 4-motor stall current | 28 A | 20 A | 7.2 A |
-| Paired channel stall | 14 A — near 2x7A 15 A peak ⚠️ | 10 A — within 2x7A 15 A peak ✓ | 3.6 A — within continuous ✓ |
-| No-load speed (100 mm wheel) | ~1.31 m/s | ~1.57 m/s | ~1.20 m/s |
+| Paired channel stall | 14 A ⚠️ | 10 A | 3.6 A — within MDD10A 10 A cont ✓ |
+| No-load speed (102 mm wheel) | ~1.34 m/s | ~1.60 m/s | ~1.23 m/s |
 | Price (each) | — | ~$50 | ~$50 |
 
 ---
@@ -315,8 +313,8 @@ Physical motors on hand in the shop. Catalog of what's available, independent of
 
 | # | Motor | Qty | Voltage | No-load RPM | Stall current | Encoder | Condition | Notes |
 |---|---|---|---|---|---|---|---|---|
-| 1 | [TSINY TS-25GA370H-45](https://www.tsinymotor.com) (25 mm dia, 1:45) | ≥2 (confirm) | DC 12 V | 130 | TBD | 6-wire, hall (CPR TBD) | Installed on chassis | Gearbox "45" = 45:1 ratio. Encoder voltage TBD — verify 3.3 V safe ⚠️ |
+| 1 | [TSINY TS-25GA370H-45](https://makerselectronics.com/product/dc-motor-ga25-370-with-encoder-4-4kg-130rpm-12v-with-bracket/) (25 mm dia, ~46.8:1) | ≥2 (confirm) | DC 12 V | 130 | 1.8 A stall | 6-wire, hall (CPR TBD — measure) | Installed on chassis | Stall torque 4.4 kg·cm, nearly identical to MP #4864. Encoder CPR not on datasheet — count pulses to determine. Encoder voltage TBD — verify 3.3 V safe before connecting to ESP32 ⚠️ |
 | 2 | SGM25-370 (25 mm dia) | TBD | DC 6 V | 280 | TBD | Magnetic, rear PCB + JST (CPR TBD) | Loose, on test wheel | ⚠️ 6 V motor — under-driven on 12 V rail or needs voltage limit. Encoder voltage TBD — verify 3.3 V safe |
-| 3 | [JGA25-370 1:32](https://www.amazon.com/dp/B0GV7J5DBY) (25 mm dia, 4 mm D-shaft) | 2-pack ×2 = 4 | DC 12 V | 260 (rated) | **6.2 A** | AB hall, 13 lines → 1664 CPR, **3.3–5 V** ✓, 6-pin PH2.0 | Candidate — not bought | 1.38 m/s @ 4" wheel ✓. Stall torque 8.7 kg·cm. Paired stall 12.4 A — within RoboClaw 2x7A 15 A peak ✓ but above 7.5 A continuous → accel limit + firmware current cap, avoid sustained stall. 4-motor 24.8 A ≫ cell 10 A continuous ⚠️. Encoder 3.3 V safe ✓ |
+| 3 | [JGA25-370 1:32](https://www.amazon.com/dp/B0GV7J5DBY) (model MC370P34_V12_R13, 25 mm dia, 4 mm D-shaft offset, 96 g) | 2-pack ×2 = 4 | DC 12 V | 260 ±10% (rated) | **6.2 A** (rated 1.1 A) | AB hall, 13 lines → 1664 CPR, **3.3–5 V** ✓, integrated pull-ups, 6-pin PH2.0 | Candidate — not bought | 1.38 m/s @ 4" wheel ✓. Rated torque 1.5 kg·cm, stall torque 8.7 kg·cm. Paired stall 12.4 A — exceeds MDD10A 10 A continuous ⚠️ within 30 A peak → firmware current cap + avoid sustained stall. 4-motor 24.8 A ≫ cell 10 A continuous ⚠️. Encoder Vcc must wire to ESP32 3.3 V — pull-ups follow Vcc, 5 V power → 5 V signals → fries ESP32 GPIO ⚠️ |
 
 > Fill in each row as motors are identified. Flag any with paired-channel stall > 15 A (exceeds RoboClaw 2x7A peak), or sustained draw > 7.5 A continuous, with ⚠️.
