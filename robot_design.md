@@ -119,7 +119,9 @@ Pololu #4864. ~$50/ea × 4 = ~$200 total. Safer current margins but high cost.
 360° 2D lidar, triangulation, indoor use. ROS 2 driver: `ldrobot_lidar_ros2` (official).
 - Interface: USB (CDC serial, no driver install needed on Linux) — plug into Pi USB port
 - Power: 5 V USB bus-powered, ~180 mA / ~0.9 W typical
-- Range: 0.02–12 m · scan rate: 10 Hz · angular resolution: ~1°
+- Range: 0.02–12 m
+- Scan rate: 10 Hz
+- Angular resolution: ~1°
 - ⚠️ Indoor-optimized — strong sunlight or highly reflective surfaces degrade accuracy
 - Verify `ldrobot_lidar_ros2` package compatibility with target ROS 2 distro before integration
 
@@ -129,7 +131,8 @@ Pololu #4864. ~$50/ea × 4 = ~$200 total. Safer current margins but high cost.
 
 Stereo depth + RGB + onboard MyriadX VPU. ROS 2 driver: `depthai-ros`.
 - Interface: USB 3.0 (USB-C), bus-powered — **requires USB 3.0 port** (Pi 4B has 2×USB 3.0 ✓; Pi 5 preferred for bandwidth headroom)
-- Typical: ~400 mA / ~2 W · peak (active inference + streaming): up to **1.0 A / ~5 W**
+- Typical: ~400 mA / ~2 W
+- Peak (active inference + streaming): up to **1.0 A / ~5 W**
 - ⚠️ Pi 4B + OAK-D Lite peak 5V rail: Pi 4B 2.5 A + OAK-D 1.0 A + LD19 0.18 A = **3.68 A — within 5 A UPS limit ✓**
 - ⚠️ `depthai-ros` stability on ROS 2 Humble/Jazzy — verify before integration
 
@@ -175,8 +178,11 @@ Chosen JGA25-370 1:32, 4" RC airplane wheels (~102 mm), ~2 kg robot:
 
 ### Power Budget — 5 V Rail (25 W max)
 - Raspberry Pi 4B: 600 mA idle / 1.2 A typical / 2.5 A heavy — source: RPi foundation
-- OAK-D Lite: ~400 mA typical / 1.0 A peak · LD19 lidar: ~180 mA · ESP32-S3: ~100 mA typical
-- **Typical total: ~2.3 A / ~11.5 W — 54% headroom ✓** · peak (OAK-D + heavy CPU): ~4.2 A ✓
+- OAK-D Lite: ~400 mA typical / 1.0 A peak
+- LD19 lidar: ~180 mA
+- ESP32-S3: ~100 mA typical
+- **Typical total: ~2.3 A / ~11.5 W — 54% headroom ✓**
+- Peak (OAK-D + heavy CPU): ~4.2 A ✓
 
 ### Power Budget — Battery Rail (9.0–12.6 V)
 Per-motor current: ~200 mA typical driving, 6.2 A stall (JGA25-370).
@@ -189,7 +195,7 @@ Per-motor current: ~200 mA typical driving, 6.2 A stall (JGA25-370).
 | Heavy load | 4 × 600 mA = 2.4 A | ~3.5 A | ~38.5 W | slopes, acceleration bursts |
 | Stall (worst case) | 4 × 6.2 A = 24.8 A | ~25.9 A | ~285 W | ⚠️ far exceeds cell 10 A continuous — sustained stall kills battery; firmware must prevent |
 
-**Runtime (38 Wh pack):** typical driving ~108 min · heavy load ~59 min · idle ~138 min
+**Runtime (38 Wh pack):** typical driving ~108 min, heavy load ~59 min, idle ~138 min
 
 **Key limits:**
 - 5 V rail: ~2.2 A of 5 A used ✓
@@ -229,7 +235,7 @@ OAK-D Lite chosen for both configs. Swap-in upgrade is compute only. Motors, mot
 
 ### [Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)
 Replaces Pi 4B. Higher performance, native USB 3.0. GPIO/I2C pinout compatible with Pi 4B.
-- Idle: ~1.0 A / ~5 W · typical: ~1.8 A / ~9 W · heavy: ~3.5 A / ~17.5 W (RPi foundation)
+- Idle: ~1.0 A / ~5 W, typical: ~1.8 A / ~9 W, heavy: ~3.5 A / ~17.5 W (RPi foundation)
 - Requires 5V/5A supply — same Waveshare UPS, near limit under heavy load
 
 ### 5 V Rail — Pi 5 + OAK-D Lite
@@ -243,7 +249,7 @@ Replaces Pi 4B. Higher performance, native USB 3.0. GPIO/I2C pinout compatible w
 
 Peak (heavy CPU + active OAK-D + lidar) = 4.68 A — within UPS 5 A limit ✓ (~320 mA margin). Avoid simultaneous sustained heavy CPU and active inference to preserve margin.
 
-**Runtime:** 5 V rail ~16 W typical from battery · typical total ~40 W → **~57 min** · heavy ~53 W → **~43 min**
+**Runtime:** 5 V rail ~16 W typical from battery. Typical total ~40 W → **~57 min**, heavy ~53 W → **~43 min**
 
 ### Open Questions — Pi 5 config
 - Linorobot2 compatibility with Pi 5 / Ubuntu confirmed?
